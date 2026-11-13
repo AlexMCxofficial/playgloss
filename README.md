@@ -12,15 +12,3 @@ An English guess-the-meaning game for two players. Spin the wheel, get a word, p
     python3 -m http.server
 
 Then open http://localhost:8000.
-
-## Project layout
-
-- `core/` game rules (no visuals)
-- `content/` word list
-- `web/` website and game
-- `wrappers/` desktop builds (Tauri)
-- `docs/` install guides
-
-## License
-
-MIT. See `LICENSE`. Third-party data is listed in `CREDITS.md`.
