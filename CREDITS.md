@@ -27,6 +27,7 @@ Source: https://wordnet.princeton.edu/
 
 - NLTK (Apache 2.0): reads WordNet in `tools/build_words.py`
 - better-profanity (MIT): filters offensive words in `tools/build_words.py`
+- wordfreq (code Apache 2.0, data CC BY-SA 4.0): ranked words by how common they are in `tools/build_words.py`. Only the ordering was used; none of its data is shipped.
 
 ## Original work
 
