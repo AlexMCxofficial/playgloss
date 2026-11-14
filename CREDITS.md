@@ -23,14 +23,6 @@ WordNet is not MIT licensed; its notice must stay with every copy that includes 
 
 Source: https://wordnet.princeton.edu/
 
-### Word difficulty data
-
-TO DECIDE: the frequency list used to rank words by how common they are. It is used only to sort words into levels; confirm its license allows redistribution of the result, then name it here with its license.
-
-### Font
-
-TO DECIDE: the CSS asks for Lato, but no font file is bundled yet, so visitors currently see their system font. If Lato is bundled: Lato, Copyright (c) Lukasz Dziedzic, SIL Open Font License 1.1, https://openfontlicense.org/. Include the font's license file next to the font.
-
 ## Build tools only (not shipped with the game)
 
 - NLTK (Apache 2.0): reads WordNet in `tools/build_words.py`
