@@ -1,10 +1,18 @@
 name: Build Android app
 
 # Manual: Actions tab > Build Android app > Run workflow.
-# Needs these repository secrets (see the steps in the chat):
-#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
+# Needs these repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
+# Optional: type a published release tag (for example v0.1.0) to attach the APK to that release.
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published release tag to attach the APK to (leave empty to skip)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
 
 jobs:
   apk:
@@ -59,3 +67,9 @@ jobs:
         with:
           name: PlayGloss-apk
           path: PlayGloss.apk
+
+      - name: Attach to the release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.tag }}" PlayGloss.apk --clobber

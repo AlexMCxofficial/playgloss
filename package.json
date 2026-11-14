@@ -3,6 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "scripts": { "tauri": "tauri" },
-  "devDependencies": { "@tauri-apps/cli": "^2" }
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.4"
+  },
+  "description": "An English guess-the-meaning game for two players. Spin the wheel, get a word, pick the right meaning, and be the first team to reach 100 points.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "keywords": [],
+  "author": ""
 }
