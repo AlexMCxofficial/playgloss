@@ -1,0 +1,5 @@
+.venv/
+node_modules/
+freq.txt
+src-tauri/target/
+src-tauri/gen/
