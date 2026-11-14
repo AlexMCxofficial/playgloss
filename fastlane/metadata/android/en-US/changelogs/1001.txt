@@ -1,0 +1,1 @@
+First release on F-Droid. Spin the wheel, answer word-meaning questions and race to 100 points. Works offline and collects no data.
