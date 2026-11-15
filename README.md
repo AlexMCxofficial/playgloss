@@ -26,10 +26,10 @@ Winget and F-Droid listings are not available yet. The Windows and Mac apps are 
 
 ## How to play
 
-Red always starts in 1 vs 1 and 2 vs 2. Each turn the player spins the wheel, and it lands on a difficulty or a power-up.
+In 1 vs 1 the first player listed starts, and in 2 vs 2 a random draw decides the turn order. Each turn the player spins the wheel, and it lands on a difficulty or a power-up.
 
 - **Solo:** just you, racing to 100 points. The game tells you how many turns it took. No resign or draw.
-- **1 vs 1:** two players, each with a card showing name, colour, score and power-ups, and their own Offer draw and Resign buttons.
+- **1 vs 1:** two players, each with a card showing name, color, score and power-ups, and their own Offer draw and Resign buttons.
 - **2 vs 2:** two teams of two. A Team Scoreboard shows each team's combined score, and a leaderboard shows each player's share. A draw offer is for everyone, but resigning is only for you.
 
 | Level | Points | Time | Words |
@@ -45,7 +45,7 @@ Red always starts in 1 vs 1 and 2 vs 2. Each turn the player spins the wheel, an
 
 - **Power-ups:** 2x doubles your points if correct, 3x triples them, Shield gives half the points if you are wrong, and Free 5 gives 5 points straight away. You choose 2x, 3x or Shield after you see the level and before you see the word. One power-up per question, and it is used up either way.
 - **The wheel looks evenly divided, but the odds are not.** Easier levels come up far more often.
-- **Names and colours:** pick from 16 colours (the two sides cannot share one) and a name of up to 16 characters. Offensive names are refused with a red message.
+- **Names and colors:** pick from 16 colors (the two sides cannot share one) and a name of up to 16 characters. Offensive names are refused with a red message.
 - **Winning:** when someone reaches 100, the round finishes so everyone gets the same number of turns. The higher score wins, and a tie goes to a sudden-death spin.
 - **Switching pages:** open Home or Documentation and come back, and your game is still there for as long as the tab or window stays open.
 - There is a very rare Easter egg. Good luck.
