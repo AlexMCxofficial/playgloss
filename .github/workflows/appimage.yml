@@ -1,0 +1,50 @@
+name: Build AppImage
+
+# Manual: Actions tab > Build AppImage > Run workflow.
+# Optional: type a published release tag (for example v0.1.1) to attach the AppImage to that release.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Published release tag to attach the AppImage to (leave empty to skip)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  appimage:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Linux libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm install
+
+      - run: npx tauri build --bundles appimage
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlayGloss-AppImage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+      - name: Attach to the release
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ inputs.tag }}" src-tauri/target/release/bundle/appimage/*.AppImage --clobber
