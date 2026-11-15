@@ -1,46 +1,132 @@
-// Rules only (no visuals). Red always starts.
+// Rules only (no visuals). MIT License (see LICENSE).
+// Modes: "solo", "1v1", "2v2". Teams are 0 and 1; players are numbered in order (team 0 first).
 // Power-ups (2x, 3x, Shield) are chosen AFTER the difficulty is shown and BEFORE the word is shown.
 // Only one can be active per question. Whatever is armed is used up, right or wrong.
 var Game = (function () {
-  var other = function (t) { return t === "red" ? "blue" : "red"; };
-  var nameOf = function (t) { return t === "red" ? "Red" : "Blue"; };
   var MULT = { x2:2, x3:3, shield:1 };
+  var cur = function (g) { return g.players[g.turn]; };
 
-  function create() {
-    return { score:{red:0,blue:0}, turn:"red",
-      inv:{red:{x2:0,x3:0,shield:0}, blue:{x2:0,x3:0,shield:0}},
-      armed:{red:null,blue:null}, offered:false, over:false, winner:null, reason:"" };
+  // cfg: { mode, teams:[{ name, color, players:[names] }] }. order: player numbers in play order.
+  function create(cfg, order) {
+    var g = { mode:cfg.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0,
+      offered:false, over:false, winner:null, reason:"" };
+    cfg.teams.forEach(function (t, ti) {
+      var ids = t.players.map(function (name) {
+        g.players.push({ name:name, team:ti, score:0, inv:{ x2:0, x3:0, shield:0 }, armed:null, out:false });
+        return g.players.length - 1;
+      });
+      g.teams.push({ name:t.name, color:t.color, players:ids, out:false });
+    });
+    g.order = order || g.players.map(function (p, i) { return i; });
+    g.turn = g.order[0];
+    return g;
   }
+
+  function teamScore(g, t) {
+    return g.teams[t].players.reduce(function (s, i) { return s + g.players[i].score; }, 0);
+  }
+  // First player of a team who has not resigned (used for sudden death).
+  function rep(g, t) {
+    for (var k = 0; k < g.order.length; k++) {
+      var i = g.order[k];
+      if (g.players[i].team === t && !g.players[i].out) return i;
+    }
+    return -1;
+  }
+
+  // Move to the next player who has not resigned. True if that went past the end of the order (a round ended).
+  function advance(g) {
+    var n = g.order.length;
+    for (var k = 1; k <= n; k++) {
+      var raw = g.pos + k, pos = raw % n;
+      if (!g.players[g.order[pos]].out) { g.pos = pos; g.turn = g.order[pos]; return raw >= n; }
+    }
+    return false;
+  }
+  // At the end of a round: someone at 100 or more? Then the higher team total wins; a tie goes to sudden death.
+  function roundEnd(g) {
+    var a = teamScore(g, 0), b = teamScore(g, 1);
+    if (Math.max(a, b) < 100) return "next";
+    if (a === b) return "sudden";
+    g.over = true; g.winner = a > b ? 0 : 1; g.reason = "higher score at 100 or more";
+    return "win";
+  }
+
   function grant(g, id) {
-    var p = g.turn, i = g.inv[p];
-    if (id === "free") g.score[p] += 5;
-    else if (id in MULT) i[id]++;
+    var p = cur(g);
+    if (id === "free") p.score += 5; else if (id in MULT) p.inv[id]++;
   }
   // Toggle a power-up for the current question (only one at a time).
   function arm(g, id) {
-    var p = g.turn;
-    if (!(id in MULT) || g.inv[p][id] < 1) return;
-    g.armed[p] = g.armed[p] === id ? null : id;
+    var p = cur(g);
+    if (!(id in MULT) || p.inv[id] < 1) return;
+    p.armed = p.armed === id ? null : id;
   }
   function answer(g, lv, ok) {
-    var p = g.turn, m = g.armed[p], pts = 0;
-    if (m) { g.inv[p][m]--; g.armed[p] = null; }
+    var p = cur(g), m = p.armed, pts = 0;
+    if (m) { p.inv[m]--; p.armed = null; }
     if (ok) pts = lv.points * (m ? MULT[m] : 1);
     else if (m === "shield") pts = lv.points / 2;
-    g.score[p] += pts;
+    p.score += pts;
     return pts;
   }
+  // Returns "next", "win" or "sudden".
   function endTurn(g) {
-    var r = g.score.red, b = g.score.blue;
-    if (g.turn === "blue" && Math.max(r, b) >= 100) {   // Blue always gets the last turn of the round
-      if (r !== b) { g.over = true; g.winner = r > b ? "red" : "blue"; g.reason = "higher score at 100 or more"; return "win"; }
-      return "sudden";
+    g.turns++; g.offered = false;
+    if (g.mode === "solo") {
+      if (cur(g).score < 100) return "next";
+      g.over = true; g.winner = 0; g.reason = "reached 100 points in " + g.turns + " turns";
+      return "win";
     }
-    g.turn = other(g.turn); g.offered = false;
-    return "next";
+    return advance(g) ? roundEnd(g) : "next";
   }
-  function resign(g) { g.over = true; g.winner = other(g.turn); g.reason = nameOf(g.turn) + " resigned"; }
+  // The current player leaves. Their team plays on unless nobody on it is left.
+  function resign(g) {
+    var p = cur(g), t = g.teams[p.team];
+    p.out = true; g.offered = false;
+    t.out = t.players.every(function (i) { return g.players[i].out; });
+    if (t.out) {
+      g.over = true; g.winner = 1 - p.team;
+      g.reason = t.players.length > 1 ? t.name + " has no players left" : p.name + " resigned";
+      return "win";
+    }
+    return advance(g) ? roundEnd(g) : "next";
+  }
   function draw(g) { g.over = true; g.winner = null; g.reason = "draw agreed"; }
   function value(s) { return s.points !== undefined ? s.points : s.id === "free" ? 5 : s.id === "egg" ? 1000 : 0; }
-  return { create:create, other:other, grant:grant, arm:arm, answer:answer, endTurn:endTurn, resign:resign, draw:draw, value:value };
+
+  // 2 vs 2 turn order. teams: [{ name, players:[a, b] }, ...]. rnd gives a number from 0 to 9.
+  // Everyone draws; the higher team total goes first (equal totals: draw again); inside a team the higher
+  // number goes first (equal numbers: only those two draw again). The first team plays both of its
+  // players, then the other team does.
+  function drawOrder(teams, rnd) {
+    rnd = rnd || function () { return Math.floor(Math.random() * 10); };
+    var log = [], round = 0, nums, sums, first, order = [];
+    for (;;) {
+      round++;
+      nums = teams.map(function (t) { return [rnd(), rnd()]; });
+      sums = nums.map(function (a) { return a[0] + a[1]; });
+      log.push("Draw " + round + ": " + teams.map(function (t, i) {
+        return t.players[0] + " " + nums[i][0] + ", " + t.players[1] + " " + nums[i][1] + " (" + t.name + " " + sums[i] + ")";
+      }).join(" | "));
+      if (sums[0] !== sums[1]) break;
+      log.push("The team totals are tied, so everyone draws again.");
+    }
+    first = sums[0] > sums[1] ? 0 : 1;
+    log.push(teams[first].name + " has the higher total, so " + teams[first].name + " goes first.");
+    [first, 1 - first].forEach(function (ti) {
+      var t = teams[ti], v = nums[ti].slice();
+      while (v[0] === v[1]) {
+        log.push(t.name + ": " + t.players[0] + " and " + t.players[1] + " both drew " + v[0] + ", so they draw again.");
+        v = [rnd(), rnd()];
+        log.push(t.name + ": " + t.players[0] + " " + v[0] + ", " + t.players[1] + " " + v[1] + ".");
+      }
+      (v[0] > v[1] ? [0, 1] : [1, 0]).forEach(function (k) { order.push(ti * 2 + k); });
+    });
+    log.push("Play order: " + order.map(function (i) { return teams[i >> 1].players[i & 1]; }).join(", ") + ".");
+    return { order:order, log:log };
+  }
+
+  return { create:create, teamScore:teamScore, rep:rep, grant:grant, arm:arm, answer:answer,
+    endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder };
 })();

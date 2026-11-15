@@ -67,14 +67,9 @@ footer p{margin:.75rem 0 0;text-align:center}
 
 /* ---------- play page ---------- */
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-main.play{max-width:34rem;padding-top:.5rem;gap:.75rem;text-align:center}
+main.play{max-width:68rem;padding-top:.5rem;gap:.75rem;text-align:center}
 .play [hidden]{display:none!important}
 
-.teams{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;width:100%}
-.team{--team:#d63031;background:var(--surface);border:2px solid var(--border);border-top:6px solid var(--team);border-radius:12px;padding:.6rem .5rem}
-.team.blue{--team:#2f80ed}
-.team.on{border-color:var(--team);box-shadow:0 0 0 2px var(--team)}
-.team h2{margin:0;font-size:1rem;font-weight:700}
 .score{margin:0;font-size:2.4rem;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
 .inv{margin:0;font-size:.85rem;color:var(--muted);min-height:1.3em}
 
@@ -140,3 +135,75 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .page li{margin:.3rem 0}
 .page code{background:var(--surface);padding:.1rem .35rem;border-radius:4px;font-size:.9em}
 .page h3{margin:1.25rem 0 .25rem;font-size:1.1rem}
+
+/* ---------- play page: modes, side panels, phone tabs ---------- */
+#game{width:100%;display:flex;flex-direction:column;align-items:center;gap:.75rem}
+#scoreboard{width:100%;display:flex;flex-direction:column;align-items:center;gap:.25rem}
+.sbt{margin:0;font-size:.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.teams{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;width:100%;max-width:34rem}
+.teams.one{grid-template-columns:minmax(0,16rem);justify-content:center}
+.pcard,.tbox{--team:#888;background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:.6rem .5rem}
+.pcard.on,.tbox.on{box-shadow:0 0 0 3px var(--team),0 0 0 5px var(--fg)}
+.pcard.out{opacity:.55}
+.stripe{height:8px;margin:.1rem .75rem .5rem;border-radius:4px;background:var(--team);box-shadow:0 0 0 1.5px var(--fg)}
+.pname{margin:0;font-size:1rem;font-weight:700;overflow-wrap:anywhere}
+.pcard .row{margin-top:.5rem;gap:.4rem}
+.pcard .small{min-height:40px;padding:0 .8rem;font-size:.9rem}
+
+.arena{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,22rem) minmax(0,1fr);gap:1rem;width:100%;align-items:start}
+.side{display:flex;flex-direction:column;gap:.75rem;min-width:0}
+.cards{display:flex;flex-direction:column;gap:.75rem}
+.center{display:flex;flex-direction:column;align-items:center;gap:.75rem;min-width:0}
+.center .stage{width:100%}
+
+.lb{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.6rem .75rem;text-align:left}
+.lb:empty{display:none}
+.lb h3{margin:0 0 .4rem;font-size:.95rem}
+.lb ol{list-style:none;margin:0;padding:0;max-width:none}
+.lb li{--team:#888;margin:.5rem 0 0;padding:0}
+.lb .ln{font-weight:700;overflow-wrap:anywhere}
+.lb .lp{float:right;margin-left:.5rem;color:var(--muted);font-size:.85rem}
+.lbar{clear:both;height:8px;margin-top:.25rem;border-radius:4px;background:var(--bg);border:1px solid var(--border)}
+.lbar div{height:100%;border-radius:4px;background:var(--team);outline:1px solid var(--fg)}
+
+.mini{display:none;flex-wrap:wrap;justify-content:center;gap:.5rem;margin:0}
+.mchip{--team:#888;display:inline-flex;align-items:center;gap:.4rem;padding:.2rem .7rem;border-radius:999px;border:2px solid var(--border);background:var(--surface);font-weight:700}
+.mchip.on{box-shadow:0 0 0 2px var(--team),0 0 0 4px var(--fg)}
+.dot{width:.9rem;height:.9rem;border-radius:50%;background:var(--team);border:2px solid var(--fg)}
+
+.sethead{margin:.5rem 0 .75rem}
+.panels{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;width:100%;margin-top:1rem}
+.panel{flex:1 1 16rem;max-width:24rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem;text-align:left}
+.panel h3{margin:0 0 .5rem}
+.field{display:block;margin:.4rem 0}
+.field span{display:block;font-size:.85rem;color:var(--muted)}
+.field input{width:100%;min-height:44px;padding:0 .75rem;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:.4rem;margin-top:.75rem}
+.sw{aspect-ratio:1;min-height:36px;padding:0;border-radius:50%;border:2px solid var(--fg);cursor:pointer}
+.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--accent)}
+.sw:disabled{opacity:.3;cursor:not-allowed;background-image:linear-gradient(135deg,transparent 45%,var(--fg) 46%,var(--fg) 54%,transparent 55%)}
+
+.olog{list-style:none;margin:.75rem 0;padding:0;text-align:left;max-width:none}
+.olog li{margin:.35rem 0;padding:.4rem .6rem;border-radius:8px;background:var(--surface);font-size:.95rem}
+dialog.warn{background:#e03131;color:#fff;border-color:#8b1a1a;font-weight:700}
+dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
+
+.mtabs{display:none;position:fixed;left:0;right:0;bottom:0;z-index:5;gap:.25rem;padding:.35rem .5rem calc(.35rem + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--border)}
+.mtabs button{flex:1;min-height:44px;border:0;border-radius:10px;background:none;color:var(--muted);font:inherit;font-size:.95rem;cursor:pointer}
+.mtabs button[aria-selected="true"]{background:var(--bg);color:var(--fg);font-weight:700}
+
+/* phones and narrow windows: one panel at a time, switched with the tabs at the bottom */
+@media (max-width:819px){
+  .mtabs{display:flex}
+  #play[data-mode="solo"] .mtabs{display:none}
+  #play[data-mode="1v1"] .mtabs [data-tab="board"]{display:none}
+  #game{padding-bottom:4.5rem}
+  #play[data-mode="solo"] #game{padding-bottom:0}
+  .arena{grid-template-columns:minmax(0,1fr);max-width:30rem}
+  #play[data-tab="game"] .side{display:none}
+  #play[data-tab="players"] .center,#play[data-tab="players"] .lb{display:none}
+  #play[data-tab="board"] .center,#play[data-tab="board"] .cards{display:none}
+  #play:not([data-tab="game"]) #scoreboard,#play:not([data-tab="game"]) .mini{display:none}
+  #play[data-mode="1v1"] .mini{display:flex}
+  .panel{max-width:none}
+}
