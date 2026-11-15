@@ -1,0 +1,39 @@
+name: Build Windows 32-bit app
+
+# Manual only: Actions tab > Build Windows 32-bit app > Run workflow.
+# The installer ends up as a downloadable zip under "Artifacts" on the run page.
+# Upload it to a release yourself on GitHub.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows32:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: i686-pc-windows-msvc
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: windows-32bit
+
+      - run: npm install
+
+      - run: npx tauri build --bundles nsis --target i686-pc-windows-msvc
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlayGloss-windows-32bit
+          path: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
+          if-no-files-found: error
