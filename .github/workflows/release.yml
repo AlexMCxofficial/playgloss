@@ -1,9 +1,10 @@
 name: Build desktop apps
 
+# Manual only: Actions tab > Build desktop apps > Run workflow.
+# Adds the installers to the existing "release" release. It does not change that release's
+# title, notes or older files, and it only replaces a file when the new one has the same name.
 on:
   workflow_dispatch:
-  push:
-    tags: ["v*"]
 
 permissions:
   contents: write
@@ -16,10 +17,13 @@ jobs:
         include:
           - os: windows-latest
             args: --bundles nsis
+            files: src-tauri/target/release/bundle/nsis/*.exe
           - os: macos-latest
             args: --bundles dmg --target universal-apple-darwin
+            files: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           - os: ubuntu-22.04
-            args: --bundles deb
+            args: --bundles deb,appimage
+            files: src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/appimage/*.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +36,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -44,13 +48,10 @@ jobs:
 
       - run: npm install
 
-      - uses: tauri-apps/tauri-action@v0
+      - run: npx tauri build ${{ matrix.args }}
+
+      - name: Attach to the release
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: v__VERSION__
-          releaseName: PlayGloss v__VERSION__
-          releaseBody: See the Documentation page for install steps.
-          releaseDraft: true
-          prerelease: false
-          args: ${{ matrix.args }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload release ${{ matrix.files }} --clobber
