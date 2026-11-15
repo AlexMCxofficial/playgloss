@@ -1,13 +1,13 @@
 name: Build desktop apps
 
 # Manual only: Actions tab > Build desktop apps > Run workflow.
-# Adds the installers to the existing "release" release. It does not change that release's
-# title, notes or older files, and it only replaces a file when the new one has the same name.
+# Each platform's installers end up as a downloadable zip under "Artifacts" on the run page.
+# Upload them to a release yourself on GitHub.
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -16,14 +16,21 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            name: PlayGloss-windows
             args: --bundles nsis
-            files: src-tauri/target/release/bundle/nsis/*.exe
+            files: |
+              src-tauri/target/release/bundle/nsis/*.exe
           - os: macos-latest
+            name: PlayGloss-macos
             args: --bundles dmg --target universal-apple-darwin
-            files: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            files: |
+              src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
           - os: ubuntu-22.04
+            name: PlayGloss-linux
             args: --bundles deb,appimage
-            files: src-tauri/target/release/bundle/deb/*.deb src-tauri/target/release/bundle/appimage/*.AppImage
+            files: |
+              src-tauri/target/release/bundle/deb/*.deb
+              src-tauri/target/release/bundle/appimage/*.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -50,8 +57,8 @@ jobs:
 
       - run: npx tauri build ${{ matrix.args }}
 
-      - name: Attach to the release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload release ${{ matrix.files }} --clobber
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
