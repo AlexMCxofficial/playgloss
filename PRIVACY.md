@@ -5,6 +5,7 @@ PlayGloss collects nothing.
 - No analytics, cookies, ads or trackers.
 - No accounts. The game makes no network requests while you play.
 - The only thing stored is your dark/light choice, kept on your own device and never sent anywhere.
+- If you install the website as a web app, your browser also keeps a copy of the game's own files so it works offline. Nothing about you is stored in it.
 - Scores, power-ups and answers exist only while the page is open. Nothing about a game is saved or sent.
 
 Where you get the game from may keep its own standard server logs (for example your IP address) or collect its own data. That is outside the game's code:

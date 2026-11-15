@@ -6,8 +6,15 @@
 <title>Documentation - PlayGloss</title>
 <meta name="description" content="An English guess-the-meaning game for two players. Free, open source, no tracking.">
 <link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PlayGloss">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
+<script src="js/pwa.js"></script>
 <script src="js/app.js"></script>
 </head>
 <body>
@@ -110,11 +117,17 @@
 <li>If asked, allow your browser or file manager to install apps from this source.</li>
 <li>Tap Install.</li>
 </ol>
-<h3>iOS</h3>
-<p>iPhone and iPad installs depend on Apple's signing rules. Check the Releases page for the current option. Until then, play in the browser.</p>
+<h3>iPhone and iPad (web app)</h3>
+<p>PlayGloss has no App Store version, but you can install it from the website. It then opens full screen with its own icon and works offline.</p>
+<ol>
+<li>Open <a href="https://alexmcxofficial.github.io/playgloss/play.html">the Play page</a> in Safari and let it finish loading.</li>
+<li>Tap the Share button, then <strong>Add to Home Screen</strong>.</li>
+<li>Open PlayGloss from your Home Screen. After that first load it works without internet.</li>
+</ol>
+<p>The same steps work in Chrome on Android (menu, then Install app) and in desktop Chrome and Edge (install icon in the address bar).</p>
 
 <h2>Privacy</h2>
-<p>PlayGloss collects nothing. There are no accounts, analytics, cookies, ads or trackers, and the game makes no network requests while you play. Your dark or light choice is saved only on your own device. Scores and answers exist only while the game is open. Read the full <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/PRIVACY.md">privacy notice</a>.</p>
+<p>PlayGloss collects nothing. There are no accounts, analytics, cookies, ads or trackers, and the game makes no network requests while you play. Your dark or light choice is saved only on your own device, and if you install the website as a web app, your browser keeps a copy of the game's files so it works offline. Scores and answers exist only while the game is open. Read the full <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/PRIVACY.md">privacy notice</a>.</p>
 
 <h2>License and credits</h2>
 <p>PlayGloss is free software under the MIT License. Word meanings come from Princeton WordNet, which has its own license. See the <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/CREDITS.md">credits</a> for everything we use.</p>

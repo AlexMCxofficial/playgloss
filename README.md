@@ -5,6 +5,7 @@ An English guess-the-meaning game for two players. Spin the wheel, get a word, p
 - Free and open source (MIT)
 - No ads, no trackers, no data collection
 - No network requests while playing; runs on phone and desktop, in dark or light mode
+- Installable as an offline web app (PWA) from the website, including on iPhone
 
 ## How to play
 
