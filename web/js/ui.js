@@ -2,55 +2,61 @@
 (function () {
   "use strict";
   var $ = function (i) { return document.getElementById(i); };
-  var SL = Wheel.slices, KEY = "playgloss-session-v2";
+  var SL = Wheel.slices, CP = ColorPicker, KEY = "playgloss-session-v3";
   var PU = [["x2","2x"],["x3","3x"],["shield","Shield"]];
   var MODES = [["solo","Solo"],["1v1","1 vs 1"],["2v2","2 vs 2"]];
-  var COLORS = [["White","#ffffff"],["Light Gray","#c8c8c8"],["Gray","#808080"],["Black","#000000"],
-    ["Brown","#8b5a2b"],["Red","#e03131"],["Orange","#f28c1c"],["Yellow","#f2d024"],
-    ["Lime","#84cc16"],["Green","#2e9e44"],["Cyan","#17c3d4"],["Light Blue","#74c0fc"],
-    ["Blue","#2f80ed"],["Purple","#8e44c9"],["Magenta","#e6199b"],["Pink","#ff9ecb"]];
-  var cfg = defaults(), g = null, sd = null, used = {}, busy = false, rot = 0, tm = null, tab = "game";
+  var STYLES = [["b","Bold"],["i","Italic"],["u","Underline"]];
+  var cfg = defaults(), g = null, sd = null, used = {}, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
 
   var h = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
   var fmt = function (n) { return n % 1 ? n.toFixed(1) : String(n); };
   var pl = function (n, w) { return fmt(n) + " " + w + (n === 1 ? "" : "s"); };
   var say = function (t) { $("msg").textContent = t; };
   var who = function () { return g.players[g.turn].name; };
-  var tint = function (e, ti) { e.style.setProperty("--team", COLORS[g.teams[ti].color][1]); return e; };
+  var tint = function (e, ti) { e.style.setProperty("--team", g.teams[ti].color); return e; };
   var shuffle = function (a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
   var clean = function (v) { return String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, 16); };
+  var fixFmt = function (v) { v = String(v || ""); return STYLES.map(function (s) { return s[0]; }).filter(function (c) { return v.indexOf(c) >= 0; }).join(""); };
+  // A name with the player's bold / italic / underline choices.
+  var nm = function (name, f) { return h("span", "nm" + (f ? f.replace(/./g, " $&") : ""), name); };
+  var fill = function (el, parts) { el.textContent = ""; parts.forEach(function (x) { el.appendChild(typeof x === "string" ? h("span", "", x) : x); }); };
+  var other = function (ti) { return ti ? 0 : 1; };
 
-  /* ---------- settings (names and colours) ---------- */
+  /* ---------- settings (names, text styles and colors) ---------- */
   function defaults() {
     return { mode:"1v1", teams:[
-      { name:"Red", color:5, players:["Player 1", "Player 2"] },
-      { name:"Blue", color:12, players:["Player 3", "Player 4"] }] };
+      { name:"Red", fmt:"", color:"#e03131", players:["Player 1", "Player 2"], pfmt:["", ""] },
+      { name:"Blue", fmt:"", color:"#2f80ed", players:["Player 3", "Player 4"], pfmt:["", ""] }] };
   }
   function okName(v, dflt) { v = clean(v); return v && !Filter.bad(v) ? v : dflt; }
+  // If the two sides ended up with look-alike colors, give side 2 red or blue.
+  function apart(c) {
+    if (CP.close(c.teams[0].color, c.teams[1].color)) c.teams[1].color = CP.close(c.teams[0].color, "#2f80ed") ? "#e03131" : "#2f80ed";
+  }
   function fixCfg(c) {
     var d = defaults();
     if (!c || !MODES.some(function (m) { return m[0] === c.mode; }) || !c.teams || c.teams.length !== 2) return d;
     d.mode = c.mode;
     d.teams.forEach(function (t, i) {
       var s = c.teams[i] || {};
-      t.name = okName(s.name, t.name);
-      t.color = s.color >= 0 && s.color < 16 ? s.color | 0 : t.color;
+      t.name = okName(s.name, t.name); t.fmt = fixFmt(s.fmt); t.color = CP.norm(s.color) || t.color;
       t.players = t.players.map(function (p, k) { return okName(s.players && s.players[k], p); });
+      t.pfmt = t.pfmt.map(function (f, k) { return fixFmt(s.pfmt && s.pfmt[k]); });
     });
-    if (d.teams[0].color === d.teams[1].color) d.teams[1].color = d.teams[0].color === 12 ? 5 : 12;
+    apart(d);
     return d;
   }
 
   /* ---------- keep the game while you visit Home or Documentation (this tab only) ---------- */
   function save() {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ v:2, cfg:cfg, g:g, sd:sd, used:used, tab:tab, pending:busy })); } catch (e) {}
+    try { sessionStorage.setItem(KEY, JSON.stringify({ v:3, cfg:cfg, g:g, sd:sd, used:used, tab:tab, pending:busy })); } catch (e) {}
   }
   // Returns true if a turn was cut short by leaving the page (it is skipped).
   function restore() {
     var skipped = false;
     try {
       var s = JSON.parse(sessionStorage.getItem(KEY));
-      if (!s || s.v !== 2) return false;
+      if (!s || s.v !== 3) return false;
       cfg = fixCfg(s.cfg);
       if (!s.g || !s.g.players || !s.g.teams || !s.g.order) return false;
       g = s.g; sd = s.sd || null; used = s.used || {}; tab = s.tab || "game";
@@ -70,9 +76,9 @@
     drawSetup(); save();
   }
   function drawSetup() {
-    var box = $("setup-body"), solo = cfg.mode === "solo", modes = h("div", "row");
-    if (!solo && cfg.teams[0].color === cfg.teams[1].color) cfg.teams[1].color = cfg.teams[0].color === 12 ? 5 : 12;
-    box.textContent = "";
+    var box = $("setup-body"), solo = cfg.mode === "solo", modes = h("div", "row"), panels = h("div", "panels");
+    if (!solo) apart(cfg);
+    pickers = []; box.textContent = "";
     modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Game mode");
     MODES.forEach(function (m) {
       var b = h("button", "small", m[1]); b.type = "button";
@@ -81,48 +87,49 @@
       modes.appendChild(b);
     });
     box.appendChild(modes);
-    var panels = h("div", "panels");
     for (var ti = 0; ti < (solo ? 1 : 2); ti++) panels.appendChild(panel(ti));
     box.appendChild(panels);
-    paintSwatches();
   }
-  function field(label, val, set) {
-    var l = h("label", "field"), i = h("input"), ok = val;
-    i.type = "text"; i.maxLength = 16; i.value = val; i.autocomplete = "off"; i.spellcheck = false;
+  // A name box with bold / italic / underline buttons.
+  function field(label, val, f, set, setF) {
+    var wrap = h("div", "field"), row = h("div", "frow"), i = h("input"), ok = val;
+    i.type = "text"; i.maxLength = 16; i.value = val; i.autocomplete = "off"; i.spellcheck = false; i.setAttribute("aria-label", label);
+    var look = function () { i.className = f.replace(/./g, "f$& ").trim(); };
     i.oninput = function () { set(i.value); save(); };
     i.onchange = function () {
       var v = clean(i.value);
       if (v && Filter.bad(v)) { warn(); v = ok; } else if (v) ok = v;
       i.value = v || ok; set(i.value); save();
     };
-    l.appendChild(h("span", "", label)); l.appendChild(i);
-    return l;
+    row.appendChild(i);
+    STYLES.forEach(function (s) {
+      var b = h("button", "fmt " + s[0], s[0].toUpperCase()); b.type = "button";
+      b.setAttribute("aria-label", s[1]); b.setAttribute("aria-pressed", f.indexOf(s[0]) >= 0);
+      b.onclick = function () {
+        f = f.indexOf(s[0]) >= 0 ? f.replace(s[0], "") : fixFmt(f + s[0]);
+        b.setAttribute("aria-pressed", f.indexOf(s[0]) >= 0); look(); setF(f); save();
+      };
+      row.appendChild(b);
+    });
+    look();
+    wrap.appendChild(h("span", "flabel", label)); wrap.appendChild(row);
+    return wrap;
   }
   function panel(ti) {
-    var t = cfg.teams[ti], solo = cfg.mode === "solo", two = cfg.mode === "2v2", p = h("section", "panel"), sw = h("div", "swatches");
+    var t = cfg.teams[ti], solo = cfg.mode === "solo", two = cfg.mode === "2v2", p = h("section", "panel");
     p.appendChild(h("h3", "", solo ? "You" : two ? "Team " + (ti + 1) : "Player " + (ti + 1)));
-    p.appendChild(field(two ? "Team name" : "Name", t.name, function (v) { t.name = v; }));
-    if (two) t.players.forEach(function (n, k) { p.appendChild(field("Player " + (k + 1), n, function (v) { t.players[k] = v; })); });
-    sw.setAttribute("role", "group"); sw.setAttribute("aria-label", "Colour");
-    COLORS.forEach(function (c, ci) {
-      var b = h("button", "sw"); b.type = "button"; b.style.backgroundColor = c[1];
-      b.dataset.t = ti; b.dataset.c = ci;
-      b.onclick = function () { if (!b.disabled) { t.color = ci; paintSwatches(); save(); } };
-      sw.appendChild(b);
+    p.appendChild(field(two ? "Team name" : "Name", t.name, t.fmt, function (v) { t.name = v; }, function (f) { t.fmt = f; }));
+    if (two) t.players.forEach(function (n, k) {
+      p.appendChild(field("Player " + (k + 1), n, t.pfmt[k], function (v) { t.players[k] = v; }, function (f) { t.pfmt[k] = f; }));
     });
-    p.appendChild(sw);
+    p.appendChild(h("span", "flabel", "Color"));
+    var pk = CP.create({
+      value:t.color, refuse:"That color is too close to the other side's color.",
+      accept:solo ? null : function (c) { return !CP.close(c, cfg.teams[other(ti)].color); },
+      onChange:function (c) { t.color = c; pickers.forEach(function (q) { q.refresh(); }); save(); }
+    });
+    pickers.push(pk); p.appendChild(pk.el);
     return p;
-  }
-  // The other side's colour is taken.
-  function paintSwatches() {
-    var solo = cfg.mode === "solo";
-    Array.prototype.forEach.call(document.querySelectorAll(".sw"), function (b) {
-      var t = +b.dataset.t, c = +b.dataset.c, taken = !solo && cfg.teams[1 - t].color === c;
-      b.disabled = taken;
-      b.setAttribute("aria-pressed", cfg.teams[t].color === c);
-      b.title = COLORS[c][0] + (taken ? " (used by the other side)" : "");
-      b.setAttribute("aria-label", b.title);
-    });
   }
   function warn() { var d = $("warn"); if (!d.open) d.showModal(); }
 
@@ -132,7 +139,7 @@
       var t = cfg.teams[ti], name = clean(t.name) || D.teams[ti].name;
       var players = two ? t.players.map(function (p, k) { return clean(p) || D.teams[ti].players[k]; }) : [name];
       if (Filter.bad(name) || players.some(function (p) { return Filter.bad(p); })) bad = true;
-      teams.push({ name:name, color:t.color, players:players });
+      teams.push({ name:name, fmt:t.fmt, color:t.color, players:players, pfmt:two ? t.pfmt.slice() : [t.fmt] });
     }
     if (bad) return warn();
     var go = function (order) {
@@ -140,10 +147,13 @@
       sd = null; used = {}; busy = false; tab = "game"; say("");
       $("setup").hidden = true; $("game").hidden = false; render();
     };
-    if (!two) return go(null);
-    var d = Game.drawOrder(teams), ul = $("order-log");
+    if (solo) return go(null);
+    // Who goes first: everyone draws 0 to 9 (the draw is final).
+    var d = two ? Game.drawOrder(teams) : Game.drawFirst(teams), ul = $("order-log");
+    $("order-note").textContent = two ? "Everyone draws a number from 0 to 9. The team with the higher total goes first."
+      : "Each player draws a number from 0 to 9. The higher number goes first.";
     ul.textContent = "";
-    d.log.forEach(function (t) { ul.appendChild(h("li", "", t)); });
+    d.log.forEach(function (x) { ul.appendChild(h("li", "", x)); });
     $("order").hidden = false; $("order-go").focus();
     $("order-go").onclick = function () { $("order").hidden = true; go(d.order); };
   }
@@ -165,10 +175,15 @@
   function inv(i) {
     return PU.filter(function (b) { return i[b[0]]; }).map(function (b) { return b[1] + " ×" + i[b[0]]; }).join("  ") || "No power-ups";
   }
+  function pname(name, f, out) {
+    var p = h("p", "pname"); p.appendChild(nm(name, f));
+    if (out) p.appendChild(h("span", "", " (resigned)"));
+    return p;
+  }
   function card(pi, btns) {
     var p = g.players[pi], on = !g.over && g.turn === pi, c = tint(h("div", "pcard" + (on ? " on" : "") + (p.out ? " out" : "")), p.team);
     c.appendChild(h("div", "stripe"));
-    c.appendChild(h("p", "pname", p.name + (p.out ? " (resigned)" : "")));
+    c.appendChild(pname(p.name, p.fmt, p.out));
     c.appendChild(h("p", "score", fmt(p.score)));
     c.appendChild(h("p", "inv", inv(p.inv)));
     if (btns) {
@@ -180,22 +195,36 @@
     return c;
   }
   function tbox(ti) {
-    var d = tint(h("div", "tbox" + (!g.over && g.players[g.turn].team === ti ? " on" : "")), ti);
-    d.appendChild(h("div", "stripe")); d.appendChild(h("p", "pname", g.teams[ti].name)); d.appendChild(h("p", "score", fmt(Game.teamScore(g, ti))));
+    var t = g.teams[ti], d = tint(h("div", "tbox" + (!g.over && g.players[g.turn].team === ti ? " on" : "")), ti);
+    d.appendChild(h("div", "stripe")); d.appendChild(pname(t.name, t.fmt)); d.appendChild(h("p", "score", fmt(Game.teamScore(g, ti))));
     return d;
   }
   // 2 vs 2: how much each player adds to the team score.
   function board(ti) {
-    var t = g.teams[ti], tot = Game.teamScore(g, ti), box = h("div"), ol = h("ol");
-    box.appendChild(h("h3", "", t.name + " leaderboard"));
+    var t = g.teams[ti], tot = Game.teamScore(g, ti), box = h("div"), ol = h("ol"), hd = h("h3");
+    fill(hd, [nm(t.name, t.fmt), " leaderboard"]); box.appendChild(hd);
     t.players.slice().sort(function (a, b) { return g.players[b].score - g.players[a].score; }).forEach(function (i) {
-      var p = g.players[i], pc = tot ? Math.round(p.score / tot * 100) : 0, li = tint(h("li"), ti), bar = h("div", "lbar"), f = h("div");
-      li.appendChild(h("span", "lp", fmt(p.score) + " pts (" + pc + "%)"));
-      li.appendChild(h("span", "ln", p.name + (p.out ? " (resigned)" : "")));
+      var p = g.players[i], pc = tot ? Math.round(p.score / tot * 100) : 0, li = tint(h("li"), ti), bar = h("div", "lbar"), f = h("div"), n = h("span", "ln");
+      n.appendChild(nm(p.name, p.fmt)); if (p.out) n.appendChild(h("span", "", " (resigned)"));
+      li.appendChild(h("span", "lp", fmt(p.score) + " pts (" + pc + "%)")); li.appendChild(n);
       f.style.width = pc + "%"; bar.appendChild(f); li.appendChild(bar); ol.appendChild(li);
     });
     box.appendChild(ol);
     return box;
+  }
+  // The play order decided by the draw. It never changes during the game.
+  function orderList(box) {
+    box.textContent = "";
+    if (g.mode === "solo") return;
+    var ol = h("ol");
+    box.appendChild(h("h3", "", "Turn order"));
+    g.order.forEach(function (i) {
+      var p = g.players[i], li = tint(h("li", (!g.over && g.turn === i ? "now" : "") + (p.out ? " out" : "")), p.team);
+      if (!g.over && g.turn === i) li.setAttribute("aria-current", "true");
+      li.appendChild(h("i", "dot")); li.appendChild(nm(p.name, p.fmt)); if (p.out) li.appendChild(h("span", "", " (resigned)"));
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
   }
 
   function render() {
@@ -209,7 +238,7 @@
     mini.textContent = "";
     if (g.mode === "1v1") g.players.forEach(function (q, i) {
       var c = tint(h("span", "mchip" + (!g.over && g.turn === i ? " on" : "")), q.team);
-      c.appendChild(h("i", "dot")); c.appendChild(h("span", "", q.name + " " + fmt(q.score))); mini.appendChild(c);
+      c.appendChild(h("i", "dot")); c.appendChild(nm(q.name, q.fmt)); c.appendChild(h("span", "", " " + fmt(q.score))); mini.appendChild(c);
     });
     [0, 1].forEach(function (ti) {
       var cards = $("cards-" + ti), lb = $("lb-" + ti);
@@ -218,10 +247,13 @@
       g.teams[ti].players.forEach(function (i) { cards.appendChild(card(i, true)); });
       if (two) lb.appendChild(board(ti));
     });
+    orderList($("order-center")); orderList($("order-mobile"));
     for (var k = 0; k < tabs.length; k++) tabs[k].setAttribute("aria-selected", tabs[k].dataset.tab === tab);
-    $("turn").textContent = g.over
-      ? (solo ? p.name + " " + g.reason + "." : g.winner === null ? "Draw: " + g.reason : g.teams[g.winner].name + " wins: " + g.reason)
-      : sd ? "Sudden death: " + p.name + " spins" : p.name + (two ? " (" + g.teams[p.team].name + ")" : "") + "'s turn";
+    var team = g.teams[p.team];
+    fill($("turn"), g.over
+      ? (solo ? [nm(p.name, p.fmt), " " + g.reason + "."] : g.winner === null ? ["Draw: " + g.reason] : [nm(g.teams[g.winner].name, g.teams[g.winner].fmt), " wins: " + g.reason])
+      : sd ? ["Sudden death: ", nm(p.name, p.fmt), " spins"]
+      : two ? [nm(p.name, p.fmt), " (", nm(team.name, team.fmt), ")'s turn"] : [nm(p.name, p.fmt), "'s turn"]);
     $("spin").disabled = busy || g.over;
     $("new").hidden = !(g.over || solo);
     save();
@@ -353,7 +385,7 @@
     });
   }
   function doDraw() {
-    var p = g.players[g.turn], o = g.teams[1 - p.team];
+    var p = g.players[g.turn], o = g.teams[other(p.team)];
     g.offered = true; render();
     ask(o.name + ", " + p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ". Accept?", ["Accept draw", "Decline"]).then(function (k) {
       if (k === 0) Game.draw(g); else say("Draw declined.");
