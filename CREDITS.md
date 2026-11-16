@@ -48,9 +48,13 @@ The apps are built with [Tauri](https://tauri.app/), including its window and we
 - better-profanity (MIT): filters offensive words in `tools/build_words.py`
 - wordfreq (code Apache 2.0, data CC BY-SA 4.0): ranked words by how common they are in `tools/build_words.py`. Only the ordering was used; none of its data is shipped.
 
+## Design inspiration (no code or files included)
+
+- Yaru, Ubuntu's default theme (https://github.com/ubuntu/yaru): the Yaru color scheme in Settings borrows its look, Ubuntu orange (`#E95420`) with warm grays. No Yaru files are used. Ubuntu and Yaru belong to Canonical, and PlayGloss is not affiliated with or endorsed by Canonical.
+
 ## Original work
 
-The wheel, rules, interface, name filter and Easter egg are original to PlayGloss (MIT, AlexMC). The app icon and logo were supplied by AlexMC.
+The wheel, rules, interface, name filter, color picker, settings and Easter egg are original to PlayGloss (MIT, AlexMC). The app icon and logo were supplied by AlexMC.
 
 ## Made with AI assistance
 

@@ -26,7 +26,7 @@ Winget and F-Droid listings are not available yet. The Windows and Mac apps are 
 
 ## How to play
 
-In 1 vs 1 the first player listed starts, and in 2 vs 2 a random draw decides the turn order. Each turn the player spins the wheel, and it lands on a difficulty or a power-up.
+In 1 vs 1 and 2 vs 2 a random draw from 0 to 9 decides who goes first, and the play order is shown in a Turn order list. Each turn the player spins the wheel, and it lands on a difficulty or a power-up.
 
 - **Solo:** just you, racing to 100 points. The game tells you how many turns it took. No resign or draw.
 - **1 vs 1:** two players, each with a card showing name, color, score and power-ups, and their own Offer draw and Resign buttons.
@@ -45,7 +45,8 @@ In 1 vs 1 the first player listed starts, and in 2 vs 2 a random draw decides th
 
 - **Power-ups:** 2x doubles your points if correct, 3x triples them, Shield gives half the points if you are wrong, and Free 5 gives 5 points straight away. You choose 2x, 3x or Shield after you see the level and before you see the word. One power-up per question, and it is used up either way.
 - **The wheel looks evenly divided, but the odds are not.** Easier levels come up far more often.
-- **Names and colors:** pick from 16 colors (the two sides cannot share one) and a name of up to 16 characters. Offensive names are refused with a red message.
+- **Names and colors:** pick any color (16 presets, a hex code, RGB sliders or a color wheel; the two sides cannot have the same or a look-alike color) and a name of up to 16 characters, with bold, italic and underline if you like. Offensive names are refused with a red message.
+- **Settings:** the gear at the top left opens Settings, where you can choose a Light or Dark theme and a color scheme: PlayGloss, OLED, Yaru (Ubuntu orange) or Custom. They are saved only on your device.
 - **Winning:** when someone reaches 100, the round finishes so everyone gets the same number of turns. The higher score wins, and a tie goes to a sudden-death spin.
 - **Switching pages:** open Home or Documentation and come back, and your game is still there for as long as the tab or window stays open.
 - There is a very rare Easter egg. Good luck.
@@ -86,9 +87,12 @@ You need Rust and your system's Tauri prerequisites first. GitHub Actions builds
     web/                 the game and website (everything you need to host it)
       play.html          the game page
       docs.html          rules and install help
+      settings.html      theme and color scheme
       sw.js, manifest.json   offline web app support
       js/core/           wheel odds, game rules and the name filter (no visuals)
       js/ui.js           screen, wheel drawing, timer, saving the game
+      js/color.js        color picker (presets, hex, RGB, wheel)
+      js/theme.js, js/settings.js   theme and color scheme
       js/words.js        generated questions
     src-tauri/           Tauri app configuration for the desktop and Android apps
     tools/build_words.py builds js/words.js from WordNet and a frequency list
