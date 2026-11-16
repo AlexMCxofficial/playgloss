@@ -20,12 +20,12 @@ a{color:inherit}
 
 /* top bar */
 .bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:1rem 1.25rem}
-.tabs{display:flex;gap:clamp(1rem,4vw,3rem);grid-column:2}
+.tabs{display:flex;gap:clamp(.75rem,4vw,3rem);grid-column:2;grid-row:1}
 .tabs a{text-decoration:none;font-size:1.15rem;padding:.25rem 0;border-bottom:2px solid transparent}
 .tabs a:hover{border-color:var(--border)}
 .tabs a[aria-current="page"]{border-color:var(--fg)}
 .toggle{
-  grid-column:3;justify-self:end;width:44px;height:44px;border-radius:50%;
+  grid-column:3;grid-row:1;justify-self:end;width:44px;height:44px;border-radius:50%;
   background:none;border:1px solid var(--border);color:var(--fg);
   display:grid;place-items:center;cursor:pointer;
 }
@@ -146,7 +146,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 .pcard.on,.tbox.on{box-shadow:0 0 0 3px var(--team),0 0 0 5px var(--fg)}
 .pcard.out{opacity:.55}
 .stripe{height:8px;margin:.1rem .75rem .5rem;border-radius:4px;background:var(--team);box-shadow:0 0 0 1.5px var(--fg)}
-.pname{margin:0;font-size:1rem;font-weight:700;overflow-wrap:anywhere}
+.pname{margin:0;font-size:1rem;font-weight:500;overflow-wrap:anywhere}
 .pcard .row{margin-top:.5rem;gap:.4rem}
 .pcard .small{min-height:40px;padding:0 .8rem;font-size:.9rem}
 
@@ -207,3 +207,77 @@ dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
   #play[data-mode="1v1"] .mini{display:flex}
   .panel{max-width:none}
 }
+
+/* ---------- 0.1.2: gear, color schemes, color picker, name styles, turn order, settings ---------- */
+.gear{grid-column:1;grid-row:1;justify-self:start;text-decoration:none}
+.gear[aria-current="page"]{border-color:var(--fg)}
+@media (max-width:420px){.bar{padding:.75rem .5rem}.tabs a{font-size:.95rem}.toggle{width:40px;height:40px}}
+
+/* OLED is pure black (dark only). Yaru uses Ubuntu orange and warm grays. */
+:root[data-scheme="oled"]{--bg:#000;--surface:#0c0c0e;--border:#26262b}
+:root[data-scheme="yaru"]{--bg:#2e2e2e;--fg:#f2f2f2;--muted:#bdb8b1;--surface:#3b3b3b;--border:#575757;--accent:#e95420;--on-accent:#fff}
+:root[data-scheme="yaru"][data-theme="light"]{--bg:#fafafa;--fg:#2b2b2b;--muted:#5e5c58;--surface:#ececec;--border:#cfcdc9;color-scheme:light}
+.btn,.spin,.small[aria-pressed="true"]{box-shadow:0 0 0 2px var(--edge,transparent)}
+
+/* name styles */
+.nm.b{font-weight:900}
+.nm.i{font-style:italic}
+.nm.u{text-decoration:underline}
+.field{display:block;margin:.4rem 0}
+.flabel{display:block;margin-top:.6rem;font-size:.85rem;color:var(--muted)}
+.frow{display:flex;gap:.35rem;align-items:center}
+.frow input{flex:1;min-width:0;width:auto}
+.fb{font-weight:900}
+.fi{font-style:italic}
+.fu{text-decoration:underline}
+.fmt{min-width:40px;min-height:44px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font:inherit;cursor:pointer}
+.fmt.b{font-weight:900}
+.fmt.i{font-style:italic}
+.fmt.u{text-decoration:underline}
+.fmt[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+
+/* color picker */
+.cp{margin-top:.25rem}
+.cp-head{display:flex;align-items:center;gap:.5rem;font-weight:700}
+.cp-chip{width:1.6rem;height:1.6rem;border-radius:50%;border:2px solid var(--fg);flex:none}
+.cp-tabs{display:flex;flex-wrap:wrap;gap:.3rem;margin:.6rem 0 .5rem}
+.cp-tab{min-height:40px;padding:0 .8rem;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--fg);font:inherit;font-size:.9rem;cursor:pointer}
+.cp-tab[aria-selected="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.cp-hex{display:flex;align-items:center;gap:.6rem}
+.cp-hex input{flex:1;min-height:44px;padding:0 .75rem;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit;font-family:ui-monospace,Consolas,monospace;text-transform:uppercase}
+.cp-rgb{display:grid;gap:.5rem}
+.cp-row{display:grid;grid-template-columns:1.2rem 1fr 4.5rem;gap:.5rem;align-items:center}
+.cp-row input[type="number"]{min-height:40px;padding:0 .4rem;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
+.cp-wheelbox{display:flex;flex-direction:column;align-items:center;gap:.6rem}
+.cp-wheel{display:block;border-radius:50%;cursor:crosshair;touch-action:none}
+.cp-bright{display:grid;grid-template-columns:auto 1fr;gap:.6rem;align-items:center;width:100%;font-size:.9rem;color:var(--muted)}
+.cp-msg{min-height:1.2em;margin:.4rem 0 0;font-size:.85rem;color:#ff6b6b}
+:root[data-theme="light"] .cp-msg{color:#c92a2a}
+.cp input[type="range"]{width:100%;accent-color:var(--accent)}
+
+/* turn order list */
+.olist{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.6rem .75rem;text-align:left}
+.olist:empty{display:none}
+.olist h3{margin:0 0 .4rem;font-size:.95rem}
+.olist ol{margin:0;padding:0;list-style:none;counter-reset:turn;max-width:none}
+.olist li{--team:#888;counter-increment:turn;display:flex;align-items:center;gap:.5rem;margin:.3rem 0;padding:0}
+.olist li::before{content:counter(turn) ".";min-width:1.4rem;color:var(--muted)}
+.olist li.now{font-weight:900}
+.olist li.out{opacity:.55}
+#order-mobile{display:none}
+
+/* settings page */
+.settings{align-items:stretch}
+.setrow{display:grid;grid-template-columns:6rem 1fr;gap:.75rem;align-items:center;margin:.9rem 0}
+.setrow .row{margin-top:0;justify-content:flex-start}
+.setlabel{font-weight:700}
+.setcustom{max-width:24rem;margin:.5rem 0 1rem;padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.settings .note{margin:.5rem 0}
+@media (max-width:520px){.setrow{grid-template-columns:1fr}}
+
+@media (max-width:819px){
+  #order-center{display:none}
+  #play[data-tab="players"] #order-mobile{display:block}
+  #play:not([data-tab="players"]) #order-mobile{display:none}
+}
+.page h4{margin:1rem 0 .2rem;font-size:1rem}
