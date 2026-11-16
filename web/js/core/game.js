@@ -6,16 +6,17 @@ var Game = (function () {
   var MULT = { x2:2, x3:3, shield:1 };
   var cur = function (g) { return g.players[g.turn]; };
 
-  // cfg: { mode, teams:[{ name, color, players:[names] }] }. order: player numbers in play order.
+  // cfg: { mode, teams:[{ name, fmt, color, players:[names], pfmt:[text styles] }] }. order: player numbers in play order.
+  // A text style (fmt) is any of "b" (bold), "i" (italic) and "u" (underline).
   function create(cfg, order) {
     var g = { mode:cfg.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0,
       offered:false, over:false, winner:null, reason:"" };
     cfg.teams.forEach(function (t, ti) {
-      var ids = t.players.map(function (name) {
-        g.players.push({ name:name, team:ti, score:0, inv:{ x2:0, x3:0, shield:0 }, armed:null, out:false });
+      var ids = t.players.map(function (name, k) {
+        g.players.push({ name:name, fmt:(t.pfmt && t.pfmt[k]) || "", team:ti, score:0, inv:{ x2:0, x3:0, shield:0 }, armed:null, out:false });
         return g.players.length - 1;
       });
-      g.teams.push({ name:t.name, color:t.color, players:ids, out:false });
+      g.teams.push({ name:t.name, fmt:t.fmt || "", color:t.color, players:ids, out:false });
     });
     g.order = order || g.players.map(function (p, i) { return i; });
     g.turn = g.order[0];
@@ -95,6 +96,22 @@ var Game = (function () {
   function draw(g) { g.over = true; g.winner = null; g.reason = "draw agreed"; }
   function value(s) { return s.points !== undefined ? s.points : s.id === "free" ? 5 : s.id === "egg" ? 1000 : 0; }
 
+  // 1 vs 1 first turn. teams: [{ name }, { name }]. Each side draws 0 to 9; the higher number goes first,
+  // equal numbers draw again.
+  function drawFirst(teams, rnd) {
+    rnd = rnd || function () { return Math.floor(Math.random() * 10); };
+    var log = [], round = 0, a, b;
+    do {
+      round++; a = rnd(); b = rnd();
+      log.push("Draw " + round + ": " + teams[0].name + " " + a + " | " + teams[1].name + " " + b);
+      if (a === b) log.push("The numbers are equal, so both draw again.");
+    } while (a === b);
+    var order = a > b ? [0, 1] : [1, 0];
+    log.push(teams[order[0]].name + " has the higher number, so " + teams[order[0]].name + " goes first.");
+    log.push("Play order: " + teams[order[0]].name + ", " + teams[order[1]].name + ".");
+    return { order:order, log:log };
+  }
+
   // 2 vs 2 turn order. teams: [{ name, players:[a, b] }, ...]. rnd gives a number from 0 to 9.
   // Everyone draws; the higher team total goes first (equal totals: draw again); inside a team the higher
   // number goes first (equal numbers: only those two draw again). The first team plays both of its
@@ -128,5 +145,5 @@ var Game = (function () {
   }
 
   return { create:create, teamScore:teamScore, rep:rep, grant:grant, arm:arm, answer:answer,
-    endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder };
+    endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder, drawFirst:drawFirst };
 })();
