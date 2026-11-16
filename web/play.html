@@ -19,6 +19,7 @@
 </head>
 <body>
 <header class="bar">
+<a class="toggle gear" href="settings.html" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 5.1 L10.2 2.0 L13.8 2.0 L14.1 5.1 L15.4 5.6 L17.9 3.6 L20.4 6.1 L18.4 8.6 L18.9 9.9 L22.0 10.2 L22.0 13.8 L18.9 14.1 L18.4 15.4 L20.4 17.9 L17.9 20.4 L15.4 18.4 L14.1 18.9 L13.8 22.0 L10.2 22.0 L9.9 18.9 L8.6 18.4 L6.1 20.4 L3.6 17.9 L5.6 15.4 L5.1 14.1 L2.0 13.8 L2.0 10.2 L5.1 9.9 L5.6 8.6 L3.6 6.1 L6.1 3.6 L8.6 5.6Z"/><circle cx="12" cy="12" r="2.8"/></svg></a>
 <nav class="tabs" aria-label="Main">
 <a href="index.html">Home</a>
 <a href="play.html" aria-current="page">Play</a>
@@ -32,7 +33,7 @@
 <main class="page play" id="play" data-mode="" data-tab="game">
 <h1 class="sr">Play</h1>
 
-<!-- setup: mode, names and colours -->
+<!-- setup: mode, names and colors -->
 <section id="setup" class="setup" aria-label="New game" hidden>
 <h2 class="sethead">New game</h2>
 <div id="setup-body"></div>
@@ -53,9 +54,11 @@
 <button id="spin" class="spin" type="button">Spin</button>
 <button id="new" class="small" type="button" hidden>New game</button>
 </div>
+<div id="order-center" class="olist"></div>
 </div>
 <aside class="side"><div id="lb-1" class="lb"></div><div id="cards-1" class="cards"></div></aside>
 </div>
+<div id="order-mobile" class="olist"></div>
 </div>
 
 <!-- phone layout: tabs at the bottom -->
@@ -106,7 +109,7 @@
 <div id="order" class="overlay" role="dialog" aria-modal="true" aria-labelledby="order-title" hidden>
 <div class="card">
 <h2 id="order-title">Who goes first?</h2>
-<p class="note">Everyone draws a number from 0 to 9. The team with the higher total goes first.</p>
+<p id="order-note" class="note"></p>
 <ul id="order-log" class="olog"></ul>
 <div class="row"><button id="order-go" class="spin" type="button">Start game</button></div>
 </div>
@@ -128,6 +131,7 @@
 <script src="js/core/wheel.js"></script>
 <script src="js/core/game.js"></script>
 <script src="js/core/filter.js"></script>
+<script src="js/color.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

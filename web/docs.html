@@ -19,6 +19,7 @@
 </head>
 <body>
 <header class="bar">
+<a class="toggle gear" href="settings.html" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 5.1 L10.2 2.0 L13.8 2.0 L14.1 5.1 L15.4 5.6 L17.9 3.6 L20.4 6.1 L18.4 8.6 L18.9 9.9 L22.0 10.2 L22.0 13.8 L18.9 14.1 L18.4 15.4 L20.4 17.9 L17.9 20.4 L15.4 18.4 L14.1 18.9 L13.8 22.0 L10.2 22.0 L9.9 18.9 L8.6 18.4 L6.1 20.4 L3.6 17.9 L5.6 15.4 L5.1 14.1 L2.0 13.8 L2.0 10.2 L5.1 9.9 L5.6 8.6 L3.6 6.1 L6.1 3.6 L8.6 5.6Z"/><circle cx="12" cy="12" r="2.8"/></svg></a>
 <nav class="tabs" aria-label="Main">
 <a href="index.html">Home</a>
 <a href="play.html">Play</a>
@@ -38,15 +39,16 @@
 <h3>Game modes</h3>
 <ul>
 <li><strong>Solo</strong>: just you. Keep spinning until you reach 100 points. There is no other team, so no resign or draw, and the game tells you how many turns it took.</li>
-<li><strong>1 vs 1</strong>: two players take turns. Each has a card beside the wheel with their name, colour, score and power-ups, and their own Offer draw and Resign buttons below it. The first player listed goes first.</li>
+<li><strong>1 vs 1</strong>: two players take turns. Each has a card beside the wheel with their name, color, score and power-ups, and their own Offer draw and Resign buttons below it. A random draw decides who goes first.</li>
 <li><strong>2 vs 2</strong>: two teams of two. Every player has a card with their own score and power-ups. A Team Scoreboard above the wheel shows each team's combined score, and a leaderboard beside the wheel shows how much each player adds to their team. Read Turn order in 2 vs 2 below.</li>
 </ul>
 
-<h3>Names and colours</h3>
+<h3>Names and colors</h3>
 <ul>
-<li>Before a game starts you can choose a name (or a team name and player names in 2 vs 2) and a colour from 16: White, Light Gray, Gray, Black, Brown, Red, Orange, Yellow, Lime, Green, Cyan, Light Blue, Blue, Purple, Magenta and Pink.</li>
-<li>The two sides cannot pick the same colour. A colour the other side has taken is crossed out.</li>
+<li>Before a game starts you can choose a name (or a team name and player names in 2 vs 2). Each name has Bold, Italic and Underline buttons next to it, and the style shows wherever that name appears in the game. This works in all three modes.</li>
 <li>Names can be up to 16 characters. Obviously offensive names, including disguised ones, are refused with a red message. This check runs on your device and is basic, so it cannot catch everything.</li>
+<li>Pick any color you like. The Presets tab has 16 colors: White, Light Gray, Gray, Black, Brown, Red, Orange, Yellow, Lime, Green, Cyan, Light Blue, Blue, Purple, Magenta and Pink. The Hex tab takes a code such as <code>#2f80ed</code> (or <code>#28e</code>), the RGB tab has a slider and a number for red, green and blue, and the Wheel tab lets you tap or drag on a color wheel and set the brightness below it.</li>
+<li>The two sides cannot have the same color, or one that looks almost the same. A preset that is too close to the other side's color is crossed out, and a color you type or drag to is refused with a message.</li>
 </ul>
 
 <h3>A turn</h3>
@@ -97,8 +99,11 @@
 <li>If the scores are tied, each team spins once more in sudden death (in 2 vs 2, the first remaining player of each team spins). The higher result wins, where a level counts as its points, Free 5 counts as 5 and other power-ups count as 0. A tie spins again.</li>
 </ul>
 
-<h3>Turn order in 2 vs 2</h3>
-<p>Before a 2 vs 2 game starts, the game decides who plays first and in what order.</p>
+<h3>Turn order</h3>
+<p>The game decides who plays first with a random draw before every 1 vs 1 and 2 vs 2 game. The result is final and cannot be changed. It is shown in a Turn order list below the Spin button (on a phone, in the Players tab), and the player whose turn it is is marked. Solo has no list.</p>
+<h4>1 vs 1</h4>
+<p>Each player draws a random number from 0 to 9. The higher number goes first. If the numbers are equal, both draw again.</p>
+<h4>2 vs 2</h4>
 <ol>
 <li>Every player draws a random number from 0 to 9.</li>
 <li>Each team adds up its two numbers. The team with the higher total goes first. If both totals are equal, everyone draws again.</li>
@@ -106,10 +111,10 @@
 <li>The team that goes first plays both of its players, higher number first. Then the other team plays both of its players, higher number first. After that the order repeats.</li>
 </ol>
 <p>Example: Red is Alice (9) and Bob (8), a total of 17. Blue is Cara (9) and Dan (9), a total of 18. Blue has the higher total, so Blue goes first. Cara and Dan are tied, so they draw again and get 6 and 7. Dan has the higher number, so Dan goes before Cara. Alice drew more than Bob, so she goes before him. The play order is Dan, Cara, Alice, Bob.</p>
-<p>In 1 vs 1 there is no draw. The first player listed goes first.</p>
+
 
 <h3>Resign and draw</h3>
-<p>As in chess, on your turn, before you spin, you can resign or offer a draw. The buttons are under your own card and are greyed out when you cannot use them, for example when it is not your turn. You can offer one draw per turn. Solo has neither button.</p>
+<p>As in chess, on your turn, before you spin, you can resign or offer a draw. The buttons are under your own card and are grayed out when you cannot use them, for example when it is not your turn. You can offer one draw per turn. Solo has neither button.</p>
 <ul>
 <li><strong>1 vs 1</strong>: resigning gives the win to the other player. If the other player accepts a draw, the game ends as a draw.</li>
 <li><strong>2 vs 2</strong>: a draw offer is made for everyone, and if the other team accepts, the game ends as a draw for all four players. Resigning is only for you: your turns are skipped from then on and your points stay in your team's total. If your teammate does not resign, your team keeps playing. If both teammates resign, the other team wins.</li>
@@ -120,10 +125,19 @@
 
 <h3>Switching pages and phones</h3>
 <ul>
-<li>If you open Home or Documentation and come back to Play, your game, names, colours and scores are still there. They are kept only for as long as that browser tab or app window stays open. Closing it starts fresh.</li>
+<li>If you open Home or Documentation and come back to Play, your game, names, colors and scores are still there. They are kept only for as long as that browser tab or app window stays open. Closing it starts fresh.</li>
 <li>If you leave in the middle of a spin or a question, that turn is skipped with no points, and any power-up you had selected is given back.</li>
-<li>On small screens the play page is split into tabs at the bottom: Game, Players and, in 2 vs 2, Leaderboard.</li>
+<li>On small screens the play page is split into tabs at the bottom: Game, Players (the player cards and the turn order) and, in 2 vs 2, Leaderboard.</li>
 </ul>
+
+<h2>Settings</h2>
+<p>The gear at the top left opens Settings. Under General you can choose:</p>
+<ul>
+<li><strong>Theme</strong>: Light or Dark. The moon and sun button at the top right does the same thing.</li>
+<li><strong>Color</strong>: PlayGloss (the default look), OLED (pure black for dark screens), Yaru (Ubuntu orange with warm grays) or Custom.</li>
+<li><strong>Custom</strong> uses the same color picker as the team colors, but it only changes the accent color used for buttons and highlights. Text on the accent color turns black or white automatically so it stays readable.</li>
+</ul>
+<p>OLED only exists in the dark theme, so choosing OLED switches to Dark, and choosing Light switches OLED off. Your settings stay on your device after you close the app. They are never sent anywhere, so nobody else can read them.</p>
 
 <h2>Download and install</h2>
 <p>You can always play in your browser on the Play page. Apps for offline play are published on the <a href="https://github.com/AlexMCxofficial/playgloss/releases/latest">Releases page</a> as they become available. They contain the whole game and need no internet connection.</p>
@@ -166,7 +180,7 @@
 <p>The same steps work in Chrome on Android (menu, then Install app) and in desktop Chrome and Edge (install icon in the address bar).</p>
 
 <h2>Privacy</h2>
-<p>PlayGloss collects nothing. There are no accounts, analytics, cookies, ads or trackers, and the game makes no network requests while you play. Your dark or light choice is saved only on your own device, and if you install the website as a web app, your browser keeps a copy of the game's files so it works offline. Names, colours and scores are held in your browser tab's temporary session storage only so they survive a visit to another page, and they are erased when you close the tab or app. They are never sent anywhere. Read the full <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/PRIVACY.md">privacy notice</a>.</p>
+<p>PlayGloss collects nothing. There are no accounts, analytics, cookies, ads or trackers, and the game makes no network requests while you play. Your settings (theme, color scheme and custom accent color) are saved only on your own device and are never sent anywhere, and if you install the website as a web app, your browser keeps a copy of the game's files so it works offline. Names, colors and scores are held in your browser tab's temporary session storage only so they survive a visit to another page, and they are erased when you close the tab or app. They are never sent anywhere. Read the full <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/PRIVACY.md">privacy notice</a>.</p>
 
 <h2>License and credits</h2>
 <p>PlayGloss is free software under the MIT License. Word meanings come from Princeton WordNet, which has its own license. See the <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/CREDITS.md">credits</a> for everything we use.</p>

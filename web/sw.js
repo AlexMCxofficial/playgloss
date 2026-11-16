@@ -1,11 +1,11 @@
 // PlayGloss service worker. MIT License (see LICENSE).
 // Keeps a copy of the game on the device so it works offline.
 // When you change any file in web/, change the number in CACHE so devices fetch the new version.
-var CACHE = "playgloss-v2";
+var CACHE = "playgloss-v3";
 var FILES = [
-  "./", "index.html", "play.html", "docs.html", "manifest.json", "logo.svg",
+  "./", "index.html", "play.html", "docs.html", "settings.html", "manifest.json", "logo.svg",
   "css/style.css",
-  "js/theme.js", "js/app.js", "js/pwa.js", "js/ui.js", "js/words.js",
+  "js/theme.js", "js/app.js", "js/pwa.js", "js/ui.js", "js/words.js", "js/color.js", "js/settings.js",
   "js/core/wheel.js", "js/core/game.js", "js/core/filter.js",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
 ];
