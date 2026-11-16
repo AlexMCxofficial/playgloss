@@ -1,8 +1,8 @@
 name: Build Windows 32-bit app
 
 # Manual only: Actions tab > Build Windows 32-bit app > Run workflow.
-# The installer ends up as a downloadable zip under "Artifacts" on the run page.
-# Upload it to a release yourself on GitHub.
+# When it finishes, open the run page and download the zip under "Artifacts"
+# (PlayGloss-windows-32bit). Upload the .exe inside it to your release yourself.
 on:
   workflow_dispatch:
 
@@ -32,8 +32,16 @@ jobs:
 
       - run: npx tauri build --bundles nsis --target i686-pc-windows-msvc
 
+      - name: Collect installer
+        shell: bash
+        run: |
+          mkdir dist
+          cp src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe dist/
+          ls -l dist
+
       - uses: actions/upload-artifact@v4
         with:
           name: PlayGloss-windows-32bit
-          path: src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe
+          path: dist/*.exe
           if-no-files-found: error
+          retention-days: 30

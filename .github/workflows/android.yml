@@ -1,18 +1,19 @@
 name: Build Android app
 
-# Manual: Actions tab > Build Android app > Run workflow.
-# Needs these repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
-# Optional: type a published release tag (for example v0.1.0) to attach the APK to that release.
+# Manual only: Actions tab > Build Android app > Run workflow.
+# When it finishes, open the run page and download the zip under "Artifacts"
+# (PlayGloss-apk). Upload the .apk inside it to your release yourself.
+#
+# Signing:
+# - If the repository secrets ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and
+#   ANDROID_KEY_ALIAS exist, the APK is signed with your real release key.
+# - If they are missing, the APK is signed with a throwaway key so it still installs.
+#   Do NOT publish that one: phones will refuse to update it to a properly signed build later.
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Published release tag to attach the APK to (leave empty to skip)"
-        required: false
-        default: ""
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apk:
@@ -56,8 +57,21 @@ jobs:
           set -e
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           UNSIGNED=$(find src-tauri/gen/android -name "*-unsigned.apk" | head -1)
+          test -n "$UNSIGNED"
           echo "Signing $UNSIGNED"
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KS_PASS" ] && [ -n "$KEY_ALIAS" ]; then
+            echo "Using your release key."
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          else
+            echo "::warning::Signing secrets not found. Using a throwaway test key. Do not publish this APK."
+            KS_PASS=testpass123
+            KEY_ALIAS=test
+            keytool -genkeypair -keystore "$RUNNER_TEMP/release.jks" -storepass "$KS_PASS" \
+              -alias "$KEY_ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=PlayGloss test"
+          fi
+
           "$BT/zipalign" -p -f 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" \
             --ks-pass env:KS_PASS --out PlayGloss.apk "$RUNNER_TEMP/aligned.apk"
@@ -67,9 +81,5 @@ jobs:
         with:
           name: PlayGloss-apk
           path: PlayGloss.apk
-
-      - name: Attach to the release
-        if: ${{ inputs.tag != '' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ inputs.tag }}" PlayGloss.apk --clobber
+          if-no-files-found: error
+          retention-days: 30
