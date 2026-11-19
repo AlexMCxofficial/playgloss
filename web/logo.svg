@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="PlayGloss wheel">
+<path d="M100 100L100.00 4.00A96 96 0 0 1 144.61 15.00Z" fill="#8bd88b" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L144.61 15.00A96 96 0 0 1 179.01 45.47Z" fill="#2e9e44" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L179.01 45.47A96 96 0 0 1 195.30 88.43Z" fill="#f2d024" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L195.30 88.43A96 96 0 0 1 189.76 134.04Z" fill="#f28c1c" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L189.76 134.04A96 96 0 0 1 163.66 171.86Z" fill="#e03131" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L163.66 171.86A96 96 0 0 1 122.97 193.21Z" fill="#8b1a1a" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L122.97 193.21A96 96 0 0 1 77.03 193.21Z" fill="#8e44c9" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L77.03 193.21A96 96 0 0 1 36.34 171.86Z" fill="#000000" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L36.34 171.86A96 96 0 0 1 10.24 134.04Z" fill="#5b6170" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L10.24 134.04A96 96 0 0 1 4.70 88.43Z" fill="#5b6170" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L4.70 88.43A96 96 0 0 1 20.99 45.47Z" fill="#5b6170" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L20.99 45.47A96 96 0 0 1 55.39 15.00Z" fill="#5b6170" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M100 100L55.39 15.00A96 96 0 0 1 100.00 4.00Z" fill="#5b6170" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/>
+<circle cx="100" cy="100" r="96" fill="none" stroke="#fff" stroke-width="2.4"/>
+<circle cx="100" cy="100" r="9" fill="#fff"/></svg>

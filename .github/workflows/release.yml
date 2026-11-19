@@ -1,0 +1,73 @@
+name: Build desktop apps
+
+# Manual only: Actions tab > Build desktop apps > Run workflow.
+# When it finishes, open the run page and download the zips under "Artifacts":
+#   PlayGloss-windows  (64-bit .exe installer)
+#   PlayGloss-macos    (universal .dmg)
+#   PlayGloss-linux    (.deb and .AppImage)
+# Then create the release on GitHub yourself and upload the files from those zips.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: PlayGloss-windows
+            args: --bundles nsis
+          - os: macos-latest
+            name: PlayGloss-macos
+            args: --bundles dmg --target universal-apple-darwin
+          - os: ubuntu-22.04
+            name: PlayGloss-linux
+            args: --bundles deb,appimage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Linux libraries
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm install
+
+      - run: npx tauri build ${{ matrix.args }}
+
+      # Copy only the finished installers into one flat folder so the
+      # downloaded zip contains just the files you upload to the release.
+      - name: Collect installers
+        shell: bash
+        run: |
+          mkdir dist
+          find src-tauri/target -path "*/release/bundle/*" -type f \
+            \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" \) \
+            -exec cp {} dist/ \;
+          ls -l dist
+          test -n "$(ls -A dist)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

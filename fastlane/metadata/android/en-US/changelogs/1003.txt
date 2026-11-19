@@ -1,0 +1,1 @@
+Online play on the same network (opt-in). Host a game from the app, guests join by link or QR code. Stronger name filter. Bold and italic preview correctly in name boxes.

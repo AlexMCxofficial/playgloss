@@ -1,0 +1,5 @@
+PlayGloss is a free English word game for two teams, Red and Blue, sharing one phone or tablet. Spin the wheel, see how hard your word will be, then pick the correct meaning before time runs out.
+
+Eight difficulty levels, from Very Easy to Impossible (Almost), use 1,400 English words from everyday to very rare. Harder words are worth more points. Power-ups can double or triple your points, protect you from a wrong answer, or hand you free points. The first team to reach 100 wins, and as in chess you can resign or offer a draw.
+
+PlayGloss works fully offline. It has no ads, no accounts and no analytics, and it collects nothing. Word meanings come from Princeton WordNet. The source code is released under the MIT license.

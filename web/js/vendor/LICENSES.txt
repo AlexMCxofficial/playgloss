@@ -1,0 +1,11 @@
+Third-party code in this folder. Each keeps its own license.
+
+== nacl-fast.min.js: TweetNaCl.js 1.0.3 (version 0.14.5 of the npm package "tweetnacl") ==
+By Dmitry Chestnykh, Devi Mandiri and the TweetNaCl authors. Public domain (the Unlicense).
+Source: https://github.com/dchest/tweetnacl-js   Security audit by Cure53 (2017).
+It provides the encryption (XSalsa20-Poly1305 and X25519) used for online play.
+
+This is free and unencumbered software released into the public domain.
+Anyone is free to copy, modify, publish, use, compile, sell, or distribute this software, either in source code form
+or as a compiled binary, for any purpose, commercial or non-commercial, and by any means.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. For more information, see https://unlicense.org

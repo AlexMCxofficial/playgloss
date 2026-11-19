@@ -1,0 +1,93 @@
+// Shared overlays: power-up choice, question, egg, and ask dialog. MIT License (see LICENSE).
+// Used by both host (ui.js) and guest (join.js). Never sends the right answer to a guest.
+var Overlays = (function () {
+  "use strict";
+  var $ = function (i) { return document.getElementById(i); };
+  var h = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  var fmt = function (n) { return n % 1 ? n.toFixed(1) : String(n); };
+  var pl = function (n, w) { return fmt(n) + " " + w + (n === 1 ? "" : "s"); };
+  var PU = [["x2", "2x"], ["x3", "3x"], ["shield", "Shield"]];
+  var SL = Wheel.slices;
+
+  // Power-up choice: shown after difficulty, before word. Returns a Promise that resolves with the chosen power-up (or null).
+  function powerUp(g, lv) {
+    return new Promise(function (resolve) {
+      var p = g.players[g.turn], i = p.inv;
+      $("pu-title").textContent = p.name + ": " + lv.name;
+      $("pu-info").textContent = pl(lv.points, "point") + ", " + lv.time + " seconds. Use a power-up before you see the word?";
+      var box = $("pu-btns");
+      var paint = function () {
+        box.textContent = "";
+        PU.forEach(function (b) {
+          if (!i[b[0]]) return;
+          var e = h("button", "small", b[1] + " (" + i[b[0]] + ")");
+          e.setAttribute("aria-pressed", p.armed === b[0]);
+          e.onclick = function () { Game.arm(g, b[0]); paint(); };
+          box.appendChild(e);
+        });
+      };
+      paint();
+      $("pu").hidden = false; $("pu-go").focus();
+      $("pu-go").onclick = function () { $("pu").hidden = true; resolve(p.armed); };
+    });
+  }
+
+  // Question overlay: shows word and shuffled options. Returns a Promise that resolves with the chosen index (or null for timeout).
+  function question(g, lv, onAnswer) {
+    return new Promise(function (resolve) {
+      var list = WORDS[lv.id], u = used[lv.id] || (used[lv.id] = []);
+      var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
+      if (!pool.length) { u.length = 0; pool = list; }
+      var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
+      var opts = shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
+      var boost = g.players[g.turn].armed, finished = false;
+      $("q-level").textContent = lv.name + ", " + pl(lv.points, "point") + (boost ? ", " + (boost === "shield" ? "Shield" : boost.replace("x", "") + "x") + " active" : "");
+      $("q-word").textContent = w.word;
+      var box = $("q-opts"); box.textContent = "";
+      opts.forEach(function (o, k) { var b = h("button", "opt", o.t); b.onclick = function () { done(k); }; box.appendChild(b); });
+      $("q-next").hidden = true; $("q").hidden = false;
+      var end = Date.now() + lv.time * 1000;
+      var tm = setInterval(function () {
+        var left = Math.max(0, end - Date.now());
+        $("bar").style.width = (left / (lv.time * 1000) * 100) + "%";
+        $("secs").textContent = Math.ceil(left / 1000) + "s";
+        if (!left) done(null);
+      }, 100);
+      function done(k) {
+        if (finished) return; finished = true;
+        clearInterval(tm);
+        var kids = box.children;
+        for (var j = 0; j < kids.length; j++) { kids[j].disabled = true; if (opts[j].ok) kids[j].classList.add("right"); else if (j === k) kids[j].classList.add("wrong"); }
+        var ok = k !== null && opts[k].ok, pts = Game.answer(g, lv, ok);
+        resolve({ ok: ok, pts: pts, k: k, word: w.word, right: opts.findIndex(function (o) { return o.ok; }) });
+      }
+    });
+  }
+
+  // Egg overlay
+  function egg(shared, cb) {
+    var one = Math.round(Wheel.total / SL[SL.length - 1].weight / 50) * 50;
+    $("egg-odds").textContent = one.toLocaleString("en-US");
+    $("egg-extra").textContent = shared ? "Both teams hit it, so both teams win." : "";
+    $("egg").hidden = false; $("egg-ok").focus();
+    $("egg-ok").onclick = function () { $("egg").hidden = true; cb(); };
+  }
+
+  // Generic ask dialog
+  function ask(text, btns) {
+    return new Promise(function (res) {
+      var d = $("dlg"), box = $("dlg-btns"); $("dlg-text").textContent = text; box.textContent = "";
+      d.oncancel = function (e) { e.preventDefault(); };
+      btns.forEach(function (b, k) { var e = h("button", "small", b); e.onclick = function () { d.close(); res(k); }; box.appendChild(e); });
+      d.showModal();
+    });
+  }
+
+  function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+
+  // These need to be available globally for the host game loop
+  var used = {};
+
+  return { powerUp: powerUp, question: question, egg: egg, ask: ask, shuffle: shuffle, PU: PU, used: used };
+})();
+if (typeof module !== "undefined" && module.exports) module.exports = Overlays;

@@ -1,0 +1,58 @@
+name: Build Android APK
+
+# Manual only: Actions tab > Build Android APK > Run workflow.
+# When it finishes, open the run page and download the zip under "Artifacts"
+# (PlayGloss-android). Upload the .apk inside it to your release yourself.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: android
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - run: npm install
+
+      - name: Initialize Tauri Android support if needed
+        run: |
+          if [ ! -d "src-tauri/android" ]; then
+            npx tauri add android || true
+          fi
+
+      - run: npx tauri android build
+
+      - name: Collect APKs
+        shell: bash
+        run: |
+          mkdir dist
+          find src-tauri/target -path "*/release/bundle/apk/*" -name "*.apk" -exec cp {} dist/ \;
+          ls -l dist
+          test -n "$(ls -A dist)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlayGloss-android
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

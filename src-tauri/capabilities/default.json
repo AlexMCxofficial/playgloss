@@ -1,0 +1,6 @@
+{
+  "identifier": "default",
+  "description": "Lets the app open web links in the system browser and receive online play messages",
+  "windows": ["main"],
+  "permissions": ["core:default", "opener:default"]
+}
