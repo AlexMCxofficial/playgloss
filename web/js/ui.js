@@ -396,16 +396,24 @@
   }
 
   function stopHosting() {
-    if (host) {
-      host.stop().then(function () {
-        host = null; hosting = false; hostCfg = null;
-        showSetup();
-      });
-    }
+    if (!host) return;
+    hosting = false;
+    var h = host;
+    host = null;
+    h.stop().then(function () {
+      hostCfg = null;
+      showSetup();
+    }).catch(function () {
+      hostCfg = null;
+      showSetup();
+    });
   }
 
   function onHostStop() {
-    host = null; hosting = false; hostCfg = null;
+    if (!hosting) return;
+    host = null;
+    hosting = false;
+    hostCfg = null;
     showSetup();
   }
 
