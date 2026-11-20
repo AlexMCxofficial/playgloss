@@ -253,8 +253,12 @@
 
   // Egg overlay
   function showEgg(shared) {
-    var one = Math.round(Wheel.total / Wheel.slices[Wheel.slices.length - 1].weight / 50) * 50;
-    $("egg-odds").textContent = one.toLocaleString("en-US");
+    try {
+      var one = Math.round(Wheel.total / Wheel.slices[Wheel.slices.length - 1].weight / 50) * 50;
+      $("egg-odds").textContent = one.toLocaleString("en-US");
+    } catch (e) {
+      $("egg-odds").textContent = "1 in 50";
+    }
     $("egg-extra").textContent = shared ? "Both teams hit it, so both teams win." : "";
     $("egg").hidden = false; $("egg-ok").focus();
     $("egg-ok").onclick = function () { $("egg").hidden = true; guest.sendAction("ok"); };
@@ -301,11 +305,16 @@
   });
 
   // Initial state
-  show("join");
-  $("name-box").hidden = false;
-  $("join-go").hidden = false;
-  $("join-status").textContent = "Enter your name to join";
-  $("join-name").focus();
+  try {
+    show("join");
+    $("name-box").hidden = false;
+    $("join-go").hidden = false;
+    $("join-status").textContent = "Enter your name to join";
+    $("join-name").focus();
+  } catch (e) {
+    console.error("Join page init error:", e);
+    $("join-status").textContent = "Error loading join page. Please refresh.";
+  }
 
   // Cleanup on leave
   window.addEventListener("pagehide", function () { transport.close(); });

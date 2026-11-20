@@ -138,7 +138,7 @@ var Host = (function () {
 
   // Build the join link for a given IP
   Host.prototype.linkFor = function (ip) {
-    return "http://" + ip + ":" + this.port + "/#" + Proto.b64e(this.K);
+    return "http://" + ip + ":" + this.port + "/join.html#" + Proto.b64e(this.K);
   };
 
   return Host;
