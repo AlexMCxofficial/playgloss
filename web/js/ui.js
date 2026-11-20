@@ -11,6 +11,18 @@
   // Online play state
   var host = null, hosting = false, hostCfg = null, qrModule = null;
 
+  // Global error handler so JS errors show visibly instead of silently breaking buttons
+  window.onerror = function (msg, url, line) {
+    var d = $("err-box");
+    if (!d) {
+      d = h("div", "err-box"); d.style.cssText = "position:fixed;bottom:10px;left:10px;right:10px;background:#800;color:#fff;padding:10px;font-family:sans-serif;z-index:9999;";
+      document.body.appendChild(d);
+    }
+    d.textContent = "JS Error: " + msg + " (line " + line + ")";
+    console.error("UI error:", msg, "at", url, line);
+    return true;
+  };
+
   var h = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
   var fmt = function (n) { return n % 1 ? n.toFixed(1) : String(n); };
   var pl = function (n, w) { return fmt(n) + " " + w + (n === 1 ? "" : "s"); };
@@ -229,7 +241,7 @@
       } catch (e) { console.warn("QR generation failed", e); }
     }
     $("host-link").textContent = info.ips.length ? host.linkFor(info.ips[0]) : "Waiting for IP...";
-    $("stop-host").onclick = stopHosting;
+    $("stop-host").onclick = function () { try { stopHosting(); } catch (e) { console.error("stopHosting error:", e); } };
   }
 
   function renderLobby(seats, phase, info) {
@@ -247,17 +259,17 @@
         if (taken) {
           p.appendChild(h("p", "note", "Taken by guest"));
           var kickBtn = h("button", "small", "Kick"); kickBtn.type = "button";
-          kickBtn.onclick = function () { host.kick(s.guest); };
+          kickBtn.onclick = function () { try { host.kick(s.guest); } catch (e) { console.error("kick error:", e); } };
           p.appendChild(kickBtn);
         } else {
           var takeBtn = h("button", "small", "This device"); takeBtn.type = "button";
-          takeBtn.onclick = function () { setSeatControl(i, false); };
+          takeBtn.onclick = function () { try { setSeatControl(i, false); } catch (e) { console.error("setSeatControl error:", e); } };
           p.appendChild(takeBtn);
         }
       } else {
         // This device controls it
         var openBtn = h("button", "small", "Open for guest"); openBtn.type = "button";
-        openBtn.onclick = function () { setSeatControl(i, true); };
+        openBtn.onclick = function () { try { setSeatControl(i, true); } catch (e) { console.error("setSeatControl error:", e); } };
         p.appendChild(openBtn);
       }
       box.appendChild(p);
@@ -266,10 +278,10 @@
     // Start game button (only if all seats have a controller)
     var allControlled = seats.every(function (s) { return !s.open || (s.guest && s.taken); });
     $("lobby-start").hidden = !allControlled || phase !== "lobby";
-    $("lobby-start").onclick = startHostedGame;
+    $("lobby-start").onclick = function () { try { startHostedGame(); } catch (e) { console.error("startHostedGame error:", e); } };
 
     // Re-attach Stop Hosting handler (renderLobby recreates seat panels but not this button)
-    $("stop-host").onclick = stopHosting;
+    $("stop-host").onclick = function () { try { stopHosting(); } catch (e) { console.error("stopHosting error:", e); } };
 
     // Update link and QR if info provided
     if (info && info.ips && info.ips.length && host) {
@@ -319,6 +331,7 @@
   }
 
   function startHostedGame() {
+    try {
     // Build teams from current session seats (which have updated names from guests)
     var sessionSeats = host.session.seats;
     var teams = hostCfg.teams.map(function (t, ti) {
@@ -349,6 +362,10 @@
     d.log.forEach(function (x) { ul.appendChild(h("li", "", x)); });
     $("order").hidden = false; $("order-go").focus();
     $("order-go").onclick = function () { $("order").hidden = true; go(d.order); };
+    } catch (e) {
+      console.error("startHostedGame error:", e);
+      alert("Start game failed: " + e.message);
+    }
   }
 
   function onGameStart() {
@@ -408,13 +425,19 @@
     hosting = false;
     var h = host;
     host = null;
-    h.stop().then(function () {
+    try {
+      h.stop().then(function () {
+        hostCfg = null;
+        showSetup();
+      }).catch(function () {
+        hostCfg = null;
+        showSetup();
+      });
+    } catch (e) {
+      console.error("stopHosting.stop error:", e);
       hostCfg = null;
       showSetup();
-    }).catch(function () {
-      hostCfg = null;
-      showSetup();
-    });
+    }
   }
 
   function onHostStop() {
@@ -558,6 +581,7 @@
 
   /* ---------- New game: returns to lobby if hosting, else setup ---------- */
   function newGame() {
+    try {
     if (g.over) {
       if (hosting) {
         // Return to lobby with same guests
@@ -570,6 +594,9 @@
       return;
     }
     Overlays.ask("Leave this game and start a new one?", ["New game", "Keep playing"]).then(function (k) { if (k === 0) showSetup(); });
+    } catch (e) {
+      console.error("newGame error:", e);
+    }
   }
 
   /* ---------- event wiring ---------- */
