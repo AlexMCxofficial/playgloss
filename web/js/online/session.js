@@ -206,7 +206,12 @@ var Session = (function () {
   // Ask to join. resume is the token from an earlier visit (or null).
   Guest.prototype.join = function (name, resume) {
     this.hello = this.o.Proto.guestHello(this.o.K, { name:cleanName(name), resume:resume || null });
-    this.state = "waiting"; this.o.send(this.hello.text);
+    this.state = "waiting";
+    if (this.o.sendConnect) {
+      this.o.sendConnect(this.hello.text, this.hello.id);
+    } else {
+      this.o.send(this.hello.text);
+    }
   };
   Guest.prototype.receive = function (text) {
     var o = this.o, r, m;

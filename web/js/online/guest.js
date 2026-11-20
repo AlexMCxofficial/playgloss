@@ -12,6 +12,7 @@ var Guest = (function () {
       Filter: o.Filter,
       K: o.K,
       send: function (text) { o.transport.send(text); },
+      sendConnect: function (text, id) { o.sendConnect(text, id); },
       onEvent: function (e) { o.ui.onEvent(e); }
     });
     this.transport = o.transport;

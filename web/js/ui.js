@@ -9,7 +9,7 @@
   var cfg = defaults(), g = null, sd = null, used = Overlays.used, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
 
   // Online play state
-  var host = null, hosting = false, hostCfg = null, qrModule = null;
+  var host = null, hosting = false, stopping = false, hostCfg = null, qrModule = null;
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
   window.onerror = function (msg, url, line) {
@@ -187,6 +187,7 @@
 
   /* ---------- HOSTING: start the LAN server ---------- */
   function startHosting() {
+    if (stopping) { alert("Still stopping, please wait..."); return; }
     // Build seat config from current setup
     var solo = cfg.mode === "solo", two = cfg.mode === "2v2", np = solo ? 1 : two ? 4 : 2;
     var seats = [];
@@ -421,20 +422,24 @@
   }
 
   function stopHosting() {
-    if (!host) return;
+    if (!host || stopping) return;
+    stopping = true;
     hosting = false;
     var h = host;
     host = null;
     try {
       h.stop().then(function () {
+        stopping = false;
         hostCfg = null;
         showSetup();
       }).catch(function () {
+        stopping = false;
         hostCfg = null;
         showSetup();
       });
     } catch (e) {
       console.error("stopHosting.stop error:", e);
+      stopping = false;
       hostCfg = null;
       showSetup();
     }

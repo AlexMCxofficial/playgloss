@@ -11,18 +11,18 @@
   try { K = Proto.b64d(hash); } catch (e) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
   if (!K || K.length !== 32) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
 
-  // Transport: POST to /m/<id>, long-poll GET /p/<id>?a=<n>
+  // Transport: POST to /m/<guestId>, long-poll GET /p/<guestId>?a=<n>
   var transport = (function () {
-    var id = null, base = location.origin, ack = 0, polling = false, stopped = false;
+    var connId = null, base = location.origin, ack = 0, polling = false, stopped = false;
     function post(path, body) {
       return fetch(base + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: body }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); });
     }
     function startPoll() {
-      if (polling || stopped || !id) return;
+      if (polling || stopped || !connId) return;
       polling = true;
       (function poll() {
-        if (stopped || !id) { polling = false; return; }
-        fetch(base + "/p/" + id + "?a=" + ack, { headers: { "Accept": "text/plain" } })
+        if (stopped || !connId) { polling = false; return; }
+        fetch(base + "/p/" + connId + "?a=" + ack, { headers: { "Accept": "text/plain" } })
           .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
           .then(function (text) {
             if (stopped) return;
@@ -36,15 +36,16 @@
       })();
     }
     return {
-      connect: function (helloText) {
-        return post("/m/", helloText).then(function (r) { return r.text(); }).then(function (text) {
-          var o = JSON.parse(text);
-          if (o.id) { id = o.id; startPoll(); }
-          return o;
+      // helloText is the sealed hello message; guestId is the 32-char hex id from Proto.guestHello
+      connect: function (helloText, guestId) {
+        connId = guestId;
+        return post("/m/" + guestId, helloText).then(function (r) {
+          if (r.status === 204) { startPoll(); return; }
+          throw new Error("HTTP " + r.status);
         });
       },
-      send: function (text) { if (id) post("/m/" + id, text); },
-      close: function () { stopped = true; if (id) post("/close/" + id, ""); }
+      send: function (text) { if (connId) post("/m/" + connId, text); },
+      close: function () { stopped = true; if (connId) post("/close/" + connId, ""); }
     };
   })();
 
@@ -57,6 +58,9 @@
     Filter: Filter,
     K: K,
     transport: transport,
+    sendConnect: function (text, id) {
+      transport.connect(text, id);
+    },
     ui: {
       onEvent: function (e) { handleEvent(e); }
     }
