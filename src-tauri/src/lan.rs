@@ -39,10 +39,13 @@ const MAX_IP_HITS: usize = 150; // requests from one device per 10 seconds
 const POLL_SECS: u64 = 20; // how long a "wait for messages" request is held
 
 // The only files a guest may download. They come from the app's own embedded web folder.
-const ASSETS: [&str; 12] = [
+const ASSETS: [&str; 18] = [
     "/join.html",
     "/css/style.css",
     "/js/theme.js",
+    "/js/pwa.js",
+    "/js/app.js",
+    "/js/vendor/nacl-fast.min.js",
     "/js/core/wheel.js",
     "/js/core/game.js",
     "/js/core/filter.js",
@@ -51,7 +54,10 @@ const ASSETS: [&str; 12] = [
     "/js/online/proto.js",
     "/js/online/session.js",
     "/js/online/guest.js",
-    "/js/vendor/nacl-fast.min.js",
+    "/js/join.js",
+    "/logo.svg",
+    "/icons/icon-192.png",
+    "/icons/icon-512.png",
 ];
 
 struct Peer {

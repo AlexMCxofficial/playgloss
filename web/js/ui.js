@@ -268,8 +268,11 @@
     $("lobby-start").hidden = !allControlled || phase !== "lobby";
     $("lobby-start").onclick = startHostedGame;
 
+    // Re-attach Stop Hosting handler (renderLobby recreates seat panels but not this button)
+    $("stop-host").onclick = stopHosting;
+
     // Update link and QR if info provided
-    if (info && info.ips && info.ips.length) {
+    if (info && info.ips && info.ips.length && host) {
       var link = host.linkFor(info.ips[0]);
       $("host-link").textContent = link;
       if (qrModule) {
@@ -280,9 +283,14 @@
   }
 
   function setSeatControl(seatIndex, open) {
-    hostCfg.seats[seatIndex].open = open;
-    if (open) hostCfg.seats[seatIndex].guest = null;
-    host.session.setSeats(hostCfg.seats);
+    if (!host) return;
+    try {
+      hostCfg.seats[seatIndex].open = open;
+      if (open) hostCfg.seats[seatIndex].guest = null;
+      host.session.setSeats(hostCfg.seats);
+    } catch (e) {
+      console.error("setSeatControl error:", e);
+    }
   }
 
   function onLobbyUpdate(seats, phase) {
