@@ -117,7 +117,7 @@ pub fn lan_start(app: AppHandle, hub: State<'_, Hub>) -> Result<String, String> 
     let sh2 = Arc::clone(&sh);
     thread::spawn(move || accept_loop(listener, sh2, app));
     *cur = Some(sh);
-    Ok(format!("{{\"ip\":\"{}\",\"port\":{}}}", ip, port))
+    Ok(format!("{{\"ip\":\"{}\",\"ips\":[\"{}\"],\"port\":{}}}", ip, ip, port))
 }
 
 #[tauri::command]
