@@ -2,7 +2,7 @@ name: Build Android APK
 
 # Manual only: Actions tab > Build Android APK > Run workflow.
 # When it finishes, open the run page and download the zip under "Artifacts"
-# (PlayGloss-android). Upload the .apk inside it to your release yourself.
+# (PlayGloss-android). The APK is unsigned; sign it before publishing.
 on:
   workflow_dispatch:
 
@@ -20,9 +20,14 @@ jobs:
         with:
           node-version: 20
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
 
       - uses: swatinem/rust-cache@v2
         with:
@@ -32,21 +37,26 @@ jobs:
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android NDK
+        run: |
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+
       - run: npm install
 
-      - name: Initialize Tauri Android support if needed
+      - name: Initialize Tauri Android project if needed
         run: |
-          if [ ! -d "src-tauri/android" ]; then
-            npx tauri add android || true
+          if [ ! -d "src-tauri/gen/android" ]; then
+            npx tauri android init
           fi
 
-      - run: npx tauri android build
+      - run: npx tauri android build --apk
 
       - name: Collect APKs
         shell: bash
         run: |
           mkdir dist
-          find src-tauri/target -path "*/release/bundle/apk/*" -name "*.apk" -exec cp {} dist/ \;
+          find src-tauri/gen/android -path "*/outputs/apk/*" -name "*.apk" -exec cp {} dist/ \;
           ls -l dist
           test -n "$(ls -A dist)"
 
