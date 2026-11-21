@@ -102,9 +102,12 @@ struct Req {
 #[tauri::command]
 pub fn lan_start(app: AppHandle, hub: State<'_, Hub>) -> Result<String, String> {
     let mut cur = hub.cur.lock().map_err(|_| "busy".to_string())?;
-    if let Some(old) = cur.as_ref() {
-        if old.running.load(Ordering::SeqCst) {
-            return Err("Already hosting".to_string());
+    // Only this app's window controls the server, so a server that is still here is left over (the page was
+    // reloaded, or stopping did not reach us). Turn it off and start a fresh one with a new port.
+    if let Some(old) = cur.take() {
+        old.running.store(false, Ordering::SeqCst);
+        if let Ok(mut p) = old.peers.lock() {
+            p.clear();
         }
     }
     let ip = lan_ip().ok_or_else(|| "No local network found. Connect to Wi-Fi first.".to_string())?;
@@ -313,8 +316,12 @@ fn handle(mut s: TcpStream, ip: IpAddr, sh: &Arc<Shared>, app: &AppHandle) {
             return;
         }
     }
+    // Opening the join link from a chat or mail app is a cross-site navigation; that is fine for the public files.
+    // Messages and polling must always come from the join page itself.
+    let api = req.path.starts_with("/m/") || req.path.starts_with("/p/");
+    let navigate = req.method == "GET" && req.headers.get("sec-fetch-mode").map_or(false, |m| m == "navigate");
     if let Some(f) = req.headers.get("sec-fetch-site") {
-        if f != "same-origin" && f != "none" {
+        if f != "same-origin" && f != "none" && (api || !navigate) {
             reply(&mut s, 403, "text/plain", b"", &[]);
             return;
         }
