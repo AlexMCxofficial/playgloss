@@ -69,6 +69,11 @@ var Session = (function () {
       var prev = old[i];
       return { name:cleanName(s.name), open:!!s.open, guest:s.open && prev && prev.guest ? prev.guest : null, token:s.open && prev ? prev.token : null };
     });
+    var seats = this.seats, conns = this.conns;
+    Object.keys(conns).forEach(function (id) { // a guest whose seat was taken back is told it has no seat now
+      var c = conns[id];
+      if (c.seat >= 0 && (!seats[c.seat] || seats[c.seat].guest !== id)) c.seat = -1;
+    });
     this.lobby();
   };
   Host.prototype.setPhase = function (p) { this.phase = p === "game" ? "game" : "lobby"; this.lobby(); };
@@ -144,7 +149,11 @@ var Session = (function () {
     if (seat >= 0 && this.seats[seat]) {
       var old = this.seats[seat].guest;
       if (old && old !== id) this.kick(old, "This seat was taken over");
-      this.seats[seat].guest = id; c.seat = seat; this.tell(id, { t:"seated", seat:seat, token:this.seats[seat].token });
+      var s = this.seats[seat];
+      s.guest = id; c.seat = seat;
+      if (c.name) s.name = c.name;
+      s.token = s.token || this.o.Proto.b64e(this.o.rnd());
+      this.tell(id, { t:"seated", seat:seat, token:s.token });
     }
     this.lobby();
     return true;
