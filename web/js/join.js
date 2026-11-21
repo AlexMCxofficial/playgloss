@@ -11,41 +11,61 @@
   try { K = Proto.b64d(hash); } catch (e) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
   if (!K || K.length !== 32) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
 
-  // Transport: POST to /m/<guestId>, long-poll GET /p/<guestId>?a=<n>
+  // Transport (matches src-tauri/src/lan.rs):
+  //   POST /m/<guestId>        one message, answer 204
+  //   GET  /p/<guestId>?a=<n>  long poll, answer {"n":<highest number>,"m":["...", ...]}
   var transport = (function () {
-    var connId = null, base = location.origin, ack = 0, polling = false, stopped = false;
+    var connId = null, base = location.origin, ack = 0, polling = false, stopped = false, chain = Promise.resolve();
     function post(path, body) {
-      return fetch(base + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: body }).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); });
+      return fetch(base + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: body, cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r; });
+    }
+    // Messages carry an increasing counter and the host drops anything out of order, so send them one at a time.
+    function enqueue(path, body) {
+      var p = chain.then(function () { return post(path, body); });
+      chain = p.catch(function () {});
+      return p;
+    }
+    function lost(why) {
+      stopped = true; polling = false;
+      handleEvent({ t:"lost", why:why });
     }
     function startPoll() {
       if (polling || stopped || !connId) return;
       polling = true;
       (function poll() {
         if (stopped || !connId) { polling = false; return; }
-        fetch(base + "/p/" + connId + "?a=" + ack, { headers: { "Accept": "text/plain" } })
-          .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
-          .then(function (text) {
-            if (stopped) return;
-            if (text) {
-              text.trim().split("\n").forEach(function (line) { onMessage(line); });
-              ack += text.trim().split("\n").length;
-            }
-            setTimeout(poll, 50);
+        fetch(base + "/p/" + connId + "?a=" + ack, { cache: "no-store" })
+          .then(function (r) {
+            if (r.status === 403) throw { fatal:"The host closed this connection." };
+            if (r.status === 404) throw { fatal:"The host stopped the game." };
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
           })
-          .catch(function () { setTimeout(poll, 1000); });
+          .then(function (res) {
+            if (stopped) return;
+            if (res && Array.isArray(res.m)) {
+              res.m.forEach(function (text) { if (typeof text === "string") guest.receive(text); });
+              if (typeof res.n === "number" && res.n > ack) ack = res.n;
+            }
+            setTimeout(poll, 30);
+          })
+          .catch(function (err) {
+            if (err && err.fatal) return lost(err.fatal);
+            setTimeout(poll, 1000); // network hiccup or the phone woke up: try again
+          });
       })();
     }
     return {
       // helloText is the sealed hello message; guestId is the 32-char hex id from Proto.guestHello
       connect: function (helloText, guestId) {
-        connId = guestId;
-        return post("/m/" + guestId, helloText).then(function (r) {
-          if (r.status === 204) { startPoll(); return; }
-          throw new Error("HTTP " + r.status);
+        connId = guestId; ack = 0; stopped = false;
+        return enqueue("/m/" + guestId, helloText).then(function () { handleEvent({ t:"sent" }); startPoll(); }, function (err) {
+          handleEvent({ t:"connfail", why:String(err && err.message || err) });
         });
       },
-      send: function (text) { if (connId) post("/m/" + connId, text); },
-      close: function () { stopped = true; if (connId) post("/close/" + connId, ""); }
+      send: function (text) { if (connId && !stopped) enqueue("/m/" + connId, text).catch(function () {}); },
+      close: function () { stopped = true; }
     };
   })();
 
@@ -74,14 +94,28 @@
     ["join", "lobby", "game"].forEach(function (x) { $(x).hidden = x !== id; });
   }
 
+  function backToJoin(text) {
+    show("join");
+    $("name-box").hidden = false;
+    $("join-go").hidden = false;
+    $("join-go").disabled = false;
+    $("join-status").textContent = text;
+  }
+
   function handleEvent(e) {
-    if (e.t === "approved") {
-      $("join-status").textContent = "Approved! Waiting for seat...";
+    if (e.t === "sent") {
+      $("join-status").textContent = "Waiting for the host to let you in...";
+    } else if (e.t === "connfail") {
+      backToJoin("Could not reach the host (" + e.why + "). Check that you are on the same Wi-Fi and try again.");
+    } else if (e.t === "lost") {
+      mySeat = -1; myToken = null;
+      backToJoin(e.why + " You can try to join again.");
+    } else if (e.t === "approved") {
+      $("join-status").textContent = "You are in! Waiting for a seat...";
+      show("lobby");
+      $("lobby-status").textContent = "Waiting for the host to open a seat...";
     } else if (e.t === "refused") {
-      show("join");
-      $("name-box").hidden = false;
-      $("join-go").hidden = false;
-      $("join-status").textContent = "Refused: " + (e.why || "No reason given");
+      backToJoin("Refused: " + (e.why || "No reason given"));
     } else if (e.t === "seated") {
       mySeat = e.seat;
       myToken = e.token;
@@ -93,6 +127,7 @@
       show("lobby");
     } else if (e.t === "lobby") {
       phase = e.phase;
+      if (typeof e.you === "number") mySeat = e.you;
       renderLobby(e.seats, e.you);
       if (phase === "game") { show("game"); startGame(e); }
       else { show("lobby"); }
@@ -101,10 +136,8 @@
       sd = !!e.sd;
       if (g) renderGame(g, e.msg, e.spin, e.pu, e.q, e.egg, e.drawOffer);
     } else if (e.t === "kick") {
-      show("join");
-      $("name-box").hidden = false;
-      $("join-go").hidden = false;
-      $("join-status").textContent = "Removed: " + (e.why || "No reason given");
+      transport.close();
+      backToJoin("Removed: " + (e.why || "No reason given"));
       mySeat = -1; myToken = null; away = false;
       try { sessionStorage.removeItem("pg-resume-" + hash); } catch (x) {}
     } else if (e.t === "err") {
@@ -127,13 +160,13 @@
     var box = $("lobby-seats");
     box.textContent = "";
     seats.forEach(function (s, i) {
-      var p = h("div", "panel"), taken = s.guest && s.taken;
+      var p = h("div", "panel"), taken = !!s.taken && you !== i; // the host sends name, open, taken and mine
       p.appendChild(h("h3", "", "Seat " + (i + 1) + (s.open ? " (open)" : "")));
       p.appendChild(h("p", "", "Name: " + s.name));
       if (s.open && !taken) {
         var b = h("button", "small", you === i ? "This is you" : "Take this seat");
         b.type = "button";
-        b.disabled = you !== i ? false : true;
+        b.disabled = you !== -1;
         if (you === -1) {
           b.onclick = function () { guest.takeSeat(i, myName); };
         }
@@ -149,6 +182,9 @@
     $("lobby-leave").onclick = function () { guest.session.say({ t: "bye" }); };
     if (phase === "game") {
       $("lobby-status").textContent = "Game in progress...";
+    } else if (you === -1) {
+      var free = seats.some(function (s) { return s.open && !s.taken; });
+      $("lobby-status").textContent = free ? "Pick a seat to play." : "Waiting for the host to open a seat...";
     } else {
       $("lobby-status").textContent = away ? "Reconnected. Waiting for host to start..." : "Waiting for host to start...";
     }
