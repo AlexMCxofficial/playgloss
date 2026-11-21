@@ -72,7 +72,7 @@
       cfg = fixCfg(s.cfg);
       if (!s.g || !s.g.players || !s.g.teams || !s.g.order) return false;
       g = s.g; sd = s.sd || null; used = s.used || {}; tab = s.tab || "game";
-      hosting = !!s.hosting;
+      hosting = false; // the server and its guests cannot survive a page reload; lan_start replaces the old server
       if (s.pending && !g.over && !sd) {
         g.players[g.turn].armed = null;
         if (Game.endTurn(g) === "sudden") startSudden();
@@ -199,8 +199,10 @@
     // For 1v1 and 2v2, mark seats as "open for guest" if user wants (we'll add UI for this in lobby)
     hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams };
 
-    // Load QR module dynamically
-    import("./online/lean-qr.js").then(function (mod) { qrModule = mod; }).catch(function () { qrModule = null; });
+    // Load the QR module dynamically; the lobby waits for it so the code is drawn on the first try.
+    var qrReady = qrModule ? Promise.resolve() : import("./online/lean-qr.js")
+      .then(function (mod) { qrModule = mod; })
+      .catch(function (e) { console.warn("QR module failed to load", e); qrModule = null; });
 
     // Create and start host
     host = new Host({
@@ -219,37 +221,62 @@
       rnd: function () { return nacl.randomBytes(12); }
     });
 
-    host.start().then(function (info) {
+    var starting = host;
+    Promise.all([starting.start(), qrReady]).then(function (r) {
+      if (host !== starting) return; // stopped while starting
       hosting = true;
-      showLobby(info);
+      showLobby(r[0]);
     }).catch(function (err) {
       alert("Failed to start hosting: " + err);
-      host = null;
+      if (host === starting) host = null;
     });
+  }
+
+  // Draws the QR code with whole-pixel modules, dark on white and a 4-module quiet zone, whatever the theme.
+  // (lean-qr's own toCanvas draws 1 pixel per module on a transparent background, which scanners cannot read
+  // on a dark page.)
+  function drawQR(link) {
+    var canvas = $("qr-canvas");
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (!qrModule) { ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.hidden = true; return; }
+    try {
+      var qr = qrModule.generate(link, { minCorrectionLevel: qrModule.correction.M });
+      var quiet = 4, mods = qr.size + quiet * 2, scale = Math.max(4, Math.floor(512 / mods)), px = mods * scale;
+      canvas.width = px; canvas.height = px;
+      canvas.style.width = "256px"; canvas.style.height = "256px";
+      canvas.style.maxWidth = "100%"; canvas.style.imageRendering = "pixelated";
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, px, px);
+      ctx.fillStyle = "#000000";
+      for (var y = 0; y < qr.size; y++) for (var x = 0; x < qr.size; x++) {
+        if (qr.get(x, y)) ctx.fillRect((x + quiet) * scale, (y + quiet) * scale, scale, scale);
+      }
+      canvas.hidden = false;
+    } catch (e) {
+      console.warn("QR generation failed", e);
+      canvas.hidden = true;
+    }
   }
 
   function showLobby(info) {
     $("setup").hidden = true; $("game").hidden = true; $("lobby").hidden = false;
     $("online-indicator").hidden = false;
-    renderLobby(hostCfg.seats, "lobby", info);
-    // Show QR code
-    if (qrModule && info.ips.length) {
-      var canvas = $("qr-canvas");
-      var link = host.linkFor(info.ips[0]);
-      try {
-        var qr = qrModule.generate(link);
-        qr.toCanvas(canvas);
-      } catch (e) { console.warn("QR generation failed", e); }
-    }
+    renderLobby(host.session.seats, "lobby");
+    if (info.ips.length) drawQR(host.linkFor(info.ips[0]));
     $("host-link").textContent = info.ips.length ? host.linkFor(info.ips[0]) : "Waiting for IP...";
     $("stop-host").onclick = function () { try { stopHosting(); } catch (e) { console.error("stopHosting error:", e); } };
   }
 
-  function renderLobby(seats, phase, info) {
-    var box = $("lobby-seats");
+  function renderLobby(seats, phase) {
+    if (!host || !host.session || !hostCfg) return;
+    var box = $("lobby-seats"), sess = host.session;
     box.textContent = "";
     seats.forEach(function (s, i) {
-      var p = h("section", "panel"), taken = s.guest && s.taken;
+      // Session seats have no "taken" flag (that only exists in the message sent to guests), so ask the session.
+      var p = h("section", "panel"), taken = !!sess.guestOf(i);
+      var away = taken && sess.conns[s.guest] && sess.conns[s.guest].away;
       var ti = hostCfg.mode === "solo" ? 0 : (hostCfg.mode === "1v1" ? i : (i < 2 ? 0 : 1));
       var pi = hostCfg.mode === "solo" ? 0 : (hostCfg.mode === "1v1" ? i : (i % 2));
       var label = hostCfg.mode === "solo" ? "You" : (hostCfg.mode === "1v1" ? "Player " + (i + 1) : "Team " + (ti + 1) + " - Player " + (pi + 1));
@@ -258,9 +285,10 @@
 
       if (s.open) {
         if (taken) {
-          p.appendChild(h("p", "note", "Taken by guest"));
+          p.appendChild(h("p", "note", away ? "Guest is away (seat kept)" : "Taken by guest"));
           var kickBtn = h("button", "small", "Kick"); kickBtn.type = "button";
-          kickBtn.onclick = function () { try { host.kick(s.guest); } catch (e) { console.error("kick error:", e); } };
+          var gid = s.guest;
+          kickBtn.onclick = function () { try { if (host) host.kick(gid); } catch (e) { console.error("kick error:", e); } };
           p.appendChild(kickBtn);
         } else {
           var takeBtn = h("button", "small", "This device"); takeBtn.type = "button";
@@ -277,30 +305,25 @@
     });
 
     // Start game button (only if all seats have a controller)
-    var allControlled = seats.every(function (s) { return !s.open || (s.guest && s.taken); });
+    var allControlled = seats.every(function (s, i) { return !s.open || !!sess.guestOf(i); });
     $("lobby-start").hidden = !allControlled || phase !== "lobby";
     $("lobby-start").onclick = function () { try { startHostedGame(); } catch (e) { console.error("startHostedGame error:", e); } };
 
     // Re-attach Stop Hosting handler (renderLobby recreates seat panels but not this button)
     $("stop-host").onclick = function () { try { stopHosting(); } catch (e) { console.error("stopHosting error:", e); } };
-
-    // Update link and QR if info provided
-    if (info && info.ips && info.ips.length && host) {
-      var link = host.linkFor(info.ips[0]);
-      $("host-link").textContent = link;
-      if (qrModule) {
-        var canvas = $("qr-canvas");
-        try { var qr = qrModule.generate(link); qr.toCanvas(canvas); } catch (e) {}
-      }
-    }
   }
 
   function setSeatControl(seatIndex, open) {
     if (!host) return;
     try {
       hostCfg.seats[seatIndex].open = open;
-      if (open) hostCfg.seats[seatIndex].guest = null;
-      host.session.setSeats(hostCfg.seats);
+      // Start from the session's seats so names that guests picked are kept; a seat taken back by this device
+      // gets its original name again.
+      var list = host.session.seats.map(function (s, i) {
+        if (i !== seatIndex) return { name: s.name, open: s.open };
+        return { name: open ? s.name : hostCfg.seats[i].name, open: open };
+      });
+      host.session.setSeats(list);
     } catch (e) {
       console.error("setSeatControl error:", e);
     }
@@ -313,14 +336,15 @@
   function onGuestRequest(id, name) {
     // Show approval dialog
     Overlays.ask(name + " wants to join. Approve?", ["Approve", "Refuse"]).then(function (k) {
+      if (!host || !host.session) return; // hosting stopped while the question was open
       if (k === 0) {
-        // Find first open seat
-        var seat = -1;
-        for (var i = 0; i < hostCfg.seats.length; i++) {
-          if (hostCfg.seats[i].open && !hostCfg.seats[i].guest) { seat = i; break; }
+        // Seat the guest in the first free open seat. If none is open yet, let them in anyway: they wait in the
+        // lobby and can take a seat as soon as the host opens one.
+        var seats = host.session.seats, seat = -1;
+        for (var i = 0; i < seats.length; i++) {
+          if (seats[i].open && !host.session.guestOf(i)) { seat = i; break; }
         }
-        if (seat >= 0) host.approve(id, seat);
-        else host.refuse(id, "No open seats");
+        host.approve(id, seat);
       } else {
         host.refuse(id, "Declined by host");
       }
