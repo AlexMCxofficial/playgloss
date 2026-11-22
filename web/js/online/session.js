@@ -21,7 +21,7 @@ var Session = (function () {
     if (!o || o.t !== "do" || typeof o.a !== "string" || !Object.prototype.hasOwnProperty.call(ACTIONS, o.a)) return null;
     var r = { a:o.a };
     if (o.a === "arm") { if (typeof o.p !== "string" || !Object.prototype.hasOwnProperty.call(POWER, o.p)) return null; r.p = o.p; }
-    if (o.a === "ans") { if (typeof o.i !== "number" || o.i !== Math.floor(o.i) || o.i < 0 || o.i > 9) return null; r.i = o.i; }
+    if (o.a === "ans") { if (typeof o.i !== "number" || o.i !== Math.floor(o.i) || o.i < -1 || o.i > 9) return null; r.i = o.i; } // -1 means time is up
     return r;
   }
 
@@ -56,6 +56,32 @@ var Session = (function () {
     if (g.winner === 0 || g.winner === 1) out.winner = Math.min(g.winner, nt - 1);
     out.reason = typeof g.reason === "string" ? g.reason.replace(/[^\x20-\x7e]/g, "").slice(0, 80) : "";
     return out;
+  }
+
+  // Checks the extra parts of a game message (power-up choice, question, egg, draw offer, spin, status text) and
+  // returns a safe copy. Nothing from the network is used as it came. The right answer is never part of a question
+  // before it has been answered.
+  function cleanExtras(e) {
+    var POW = { x2:1, x3:1, shield:1 };
+    var str = function (v, n) { return String(v == null ? "" : v).replace(/[\u0000-\u001f]/g, " ").slice(0, n); };
+    var num = function (v, lo, hi) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : lo; };
+    var o = { msg:str(e && e.msg, 200), busy:!!(e && e.busy), spin:null, pu:null, q:null, egg:null, drawOffer:null };
+    if (!e || typeof e !== "object") return o;
+    if (e.spin && typeof e.spin === "object") o.spin = { n:num(e.spin.n, 0, 1e9), index:Math.floor(num(e.spin.index, 0, 99)) };
+    if (e.pu && typeof e.pu === "object") {
+      o.pu = { level:str(e.pu.level, 40), points:num(e.pu.points, 0, 100), time:num(e.pu.time, 0, 120), options:(Array.isArray(e.pu.options) ? e.pu.options : []).slice(0, 3)
+        .filter(function (b) { return b && typeof b.id === "string" && Object.prototype.hasOwnProperty.call(POW, b.id); })
+        .map(function (b) { return { id:b.id, name:str(b.name, 20), count:Math.floor(num(b.count, 0, 99)) }; }) };
+    }
+    if (e.q && typeof e.q === "object" && Array.isArray(e.q.opts) && e.q.opts.length >= 2 && e.q.opts.length <= 8) {
+      var r = e.q.res && typeof e.q.res === "object" ? e.q.res : null;
+      o.q = { n:Math.floor(num(e.q.n, 0, 1e9)), word:str(e.q.word, 80), level:str(e.q.level, 40), points:num(e.q.points, 0, 100), secs:Math.max(1, num(e.q.secs, 0, 120)),
+        boost:POW[e.q.boost] ? e.q.boost : null, opts:e.q.opts.map(function (t) { return str(t, 300); }),
+        res:r ? { k:Math.floor(num(r.k, -1, 9)), right:Math.floor(num(r.right, 0, 9)), ok:!!r.ok, pts:num(r.pts, -1000, 1000) } : null };
+    }
+    if (e.egg && typeof e.egg === "object") o.egg = { shared:!!e.egg.shared };
+    if (e.drawOffer && typeof e.drawOffer === "object") o.drawOffer = { targetSeat:Math.floor(num(e.drawOffer.targetSeat, -1, 3)), fromName:cleanName(e.drawOffer.fromName) };
+    return o;
   }
 
   /* ---------- the host ---------- */
@@ -242,6 +268,6 @@ var Session = (function () {
   Guest.prototype.take = function (seat, name) { this.say({ t:"take", seat:seat, name:cleanName(name) }); };
   Guest.prototype.act = function (a, extra) { var m = { t:"do", a:a }; if (extra) for (var k in extra) m[k] = extra[k]; this.say(m); };
 
-  return { Host:Host, Guest:Guest, cleanSnap:cleanSnap, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
+  return { Host:Host, Guest:Guest, cleanSnap:cleanSnap, cleanExtras:cleanExtras, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Session;

@@ -14,7 +14,7 @@ var Host = (function () {
   var listen = function (name, cb) { return tauri().event.listen(name, cb); };
 
   // o: { ui, cfg, Proto, Filter, K, rnd }
-  // ui: { onLobbyUpdate(seats, phase), onGuestRequest(id, name), onGuestLeft(id), onGameStart(), onGameSnap(g, sd, msg, spin), onStop() }
+  // ui: { onLobbyUpdate(seats, phase), onGuestRequest(id, name), onGuestLeft(id), onGameStart(), onAction(seat, action), onResync(), onStop() }
   function Host(o) {
     this.o = o;
     this.session = null;
@@ -119,6 +119,7 @@ var Host = (function () {
       me.o.ui.onGuestLeft(e.id);
     } else if (e.t === "lobby") {
       me.o.ui.onLobbyUpdate(me.session.seats, me.session.phase);
+      if (me.session.phase === "game" && me.o.ui.onResync) me.o.ui.onResync();
     }
   };
 
@@ -144,13 +145,23 @@ var Host = (function () {
     this.o.ui.onGameStart();
   };
 
-  // Called by UI after each render during the game
-  Host.prototype.broadcastSnap = function (snapData) {
-    if (this.session && this.session.phase === "game") {
+  // Called by the UI whenever the game changes. data = { g, sd, msg, busy, spin, egg, drawOffer, pu, q }.
+  // pu and q (the power-up choice and the question) belong to one player only, so they go to the guest in seat
+  // privSeat and to nobody else. Everything else goes to everyone.
+  var PRIVATE = ["pu", "q"];
+  Host.prototype.broadcastSnap = function (data, privSeat) {
+    var s = this.session;
+    if (!s || s.phase !== "game") return;
+    Object.keys(s.conns).forEach(function (id) {
+      var c = s.conns[id];
+      if (c.state !== "ok") return;
       var msg = { t: "snap" };
-      for (var k in snapData) msg[k] = snapData[k];
-      this.session.toAll(msg);
-    }
+      for (var k in data) {
+        if (PRIVATE.indexOf(k) >= 0 && c.seat !== privSeat) continue;
+        msg[k] = data[k];
+      }
+      s.tell(id, msg);
+    });
   };
 
   Host.prototype.stop = function () {
