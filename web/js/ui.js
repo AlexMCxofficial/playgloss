@@ -11,6 +11,9 @@
   // Online play state
   var online = false, oTab = "join", stopScan = null; // the fourth option, "Online": which view is open
   var host = null, hosting = false, stopping = false, hostCfg = null, qrModule = null;
+  // What the host is waiting for right now (a guest's answer, a power-up choice, an Easter egg click or a draw reply),
+  // and what guests are shown. Both are cleared by resetFlow() whenever a game starts or ends.
+  var S = { pu:null, q:null, egg:null, drawOffer:null }, pend = null, drawP = null, offering = false, spinN = 0, qN = 0, timers = [];
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
   window.onerror = function (msg, url, line) {
@@ -93,8 +96,23 @@
     try { return !!window.__TAURI__ && localStorage.getItem("online") === "1"; } catch (e) { return false; }
   }
 
+  /* ---------- who plays a player ---------- */
+  // Seat number = player number. A player is "remote" while a guest on another device holds that seat: only that
+  // guest may spin, answer, use power-ups, offer or answer a draw and resign for them, never the host's screen.
+  // A seat nobody holds (this device, or its guest was removed) is played from the host's screen.
+  function remote(pi) { return !!(host && host.session && host.session.phase === "game" && host.session.guestOf(pi)); }
+  function idle() { return !busy && !offering; }
+  function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
+  function resetFlow() {
+    timers.forEach(clearTimeout); timers = [];
+    S = { pu:null, q:null, egg:null, drawOffer:null }; pend = null; drawP = null; offering = false;
+    ["pu", "q", "egg"].forEach(function (id) { $(id).hidden = true; });
+    Overlays.cancelAsk();
+  }
+
   /* ---------- setup screen ---------- */
   function showSetup() {
+    resetFlow();
     g = null; sd = null; busy = false; clearInterval(tm);
     if (host) { host.stop(); host = null; hosting = false; }
     $("game").hidden = true; $("lobby").hidden = true; $("setup").hidden = false;
@@ -283,6 +301,7 @@
     }
     if (bad) return warn();
     var go = function (order) {
+      resetFlow();
       g = Game.create({ mode:cfg.mode, teams:teams }, order);
       sd = null; used = {}; busy = false; tab = "game"; say("");
       $("setup").hidden = true; $("game").hidden = false; render();
@@ -322,6 +341,7 @@
         onGuestLeft: onGuestLeft,
         onGameStart: onGameStart,
         onAction: onGuestAction,
+        onResync: function () { broadcastSnap(); },
         onStop: onHostStop
       },
       cfg: hostCfg,
@@ -505,12 +525,12 @@
     // Determine turn order (draw)
     var solo = hostCfg.mode === "solo", two = hostCfg.mode === "2v2";
     var go = function (order) {
+      resetFlow();
       g = Game.create({ mode: hostCfg.mode, teams: teams }, order);
       sd = null; used = {}; busy = false; tab = "game"; say("");
       host.startGame();
       $("lobby").hidden = true; $("game").hidden = false;
       render();
-      broadcastSnap({});
     };
     if (solo) return go(null);
     var d = two ? Game.drawOrder(teams) : Game.drawFirst(teams), ul = $("order-log");
@@ -530,52 +550,26 @@
     // Game started, UI will handle rendering
   }
 
-  function onGuestAction(seat, action) {
-    // Called when a guest sends an action. The host must verify it's that seat's turn.
-    if (g.over || busy || g.turn !== seat) return; // Ignore invalid actions
-    handleGuestAction(seat, action);
+  // A guest asked for something. The host decides: it must be that guest's own player, and the game must be
+  // waiting for exactly that. Anything else is ignored.
+  function onGuestAction(seat, a) {
+    if (!g || !host || !remote(seat)) return;
+    var A = a.a, fn;
+    if (A === "yes" || A === "no") { if (drawP && drawP.seat === seat) drawP.resolve(A === "yes"); return; }
+    if (g.over || g.turn !== seat) return;
+    if (A === "spin") { if (idle() && !g.players[seat].out) spin(); return; }
+    if (A === "resign") { if (idle() && !sd) doResign(true); return; }
+    if (A === "draw") { if (idle() && !sd && !g.offered) doDraw(); return; }
+    fn = pend && pend.seat === seat ? pend[A] : null; // arm, go, ans, next, ok
+    if (typeof fn === "function") fn(a);
   }
 
-  function handleGuestAction(seat, action) {
-    var p = g.players[seat];
-    if (action.a === "spin") {
-      spin();
-    } else if (action.a === "arm") {
-      Game.arm(g, action.p);
-      broadcastSnap({});
-    } else if (action.a === "ans") {
-      // Answer handled in question overlay callback
-    } else if (action.a === "next") {
-      // Next button after question
-      if ($("q-next").onclick) $("q-next").onclick();
-    } else if (action.a === "resign") {
-      doResign();
-    } else if (action.a === "draw") {
-      doDraw();
-    } else if (action.a === "yes" || action.a === "no") {
-      // Draw offer response
-      if (g.offered) {
-        var otherTeam = other(p.team);
-        var responder = Game.rep(g, otherTeam);
-        if (responder === seat) {
-          if (action.a === "yes") Game.draw(g); else say("Draw declined.");
-          render();
-          broadcastSnap({});
-        }
-      }
-    } else if (action.a === "ok") {
-      // Egg continue
-      if ($("egg-ok").onclick) $("egg-ok").onclick();
-    }
-  }
-
-  function broadcastSnap(snapData) {
-    if (host && host.session && host.session.phase === "game") {
-      var msg = $("msg").textContent;
-      var data = { g: g, sd: sd, msg: msg };
-      if (snapData) for (var k in snapData) data[k] = snapData[k];
-      host.broadcastSnap(data);
-    }
+  // Sends the game picture to the guests. The power-up choice and the question go only to the guest whose turn it is.
+  function broadcastSnap(extra) {
+    if (!host || !host.session || host.session.phase !== "game" || !g) return;
+    var data = { g: g, sd: !!sd, msg: $("msg").textContent, busy: !idle(), egg: S.egg, drawOffer: S.drawOffer, pu: S.pu, q: S.q };
+    if (extra) for (var k in extra) data[k] = extra[k];
+    host.broadcastSnap(data, g.turn);
   }
 
   function stopHosting() {
@@ -625,12 +619,13 @@
 
   /* ---------- drawing the game (uses View.paint) ---------- */
   function render() {
-    var acts = function (pi) { return !busy && !g.over && !sd && g.turn === pi && !g.players[pi].out; };
+    var acts = function (pi) { return idle() && !g.over && !sd && g.turn === pi && !g.players[pi].out && !remote(pi); };
     var shownTab = View.paint(g, Game, { tab: tab, sd: !!sd, acts: acts });
     tab = shownTab;
-    $("spin").disabled = busy || g.over;
+    $("spin").disabled = !idle() || g.over || remote(g.turn);
     $("new").hidden = !(g.over || g.mode === "solo");
     save();
+    broadcastSnap();
   }
 
   /* ---------- dialogs (use Overlays) ---------- */
@@ -638,7 +633,7 @@
 
   /* ---------- a turn ---------- */
   function spin() {
-    if (busy || g.over) return;
+    if (!idle() || g.over) return;
     busy = true; say(""); render();
     var res = Wheel.pick(), i = SL.indexOf(res), a = 360 / SL.length;
     var want = ((-(i + .5) * a) % 360 + 360) % 360, cur = ((rot % 360) + 360) % 360;
@@ -646,58 +641,84 @@
     var rm = matchMedia("(prefers-reduced-motion: reduce)").matches, w = $("wheel");
     w.style.transition = rm ? "transform .2s" : "transform 4s cubic-bezier(.15,.7,.1,1)";
     w.style.transform = "rotate(" + rot + "deg)";
-    var spinData = { index: i, name: res.name, id: res.id, points: res.points };
-    setTimeout(function () { landed(res, spinData); }, rm ? 250 : 4100);
-    broadcastSnap({ spin: spinData });
+    broadcastSnap({ spin: { n: ++spinN, index: i } });
+    later(function () { landed(res); }, rm ? 250 : 4100);
   }
 
-  function landed(res, spinData) {
+  function landed(res) {
     if (sd) return sdLand(res);
     if (res.points !== undefined) return reveal(res);
-    if (res.id === "egg") { say(who() + " hit the Easter egg!"); broadcastSnap({ egg: { shared: false } }); return Overlays.egg(false, function () { broadcastSnap({ egg: null }); finish(); }); }
+    if (res.id === "egg") { say(who() + " hit the Easter egg!"); return eggFlow(false, finish); }
     Game.grant(g, res.id);
     say(who() + " got " + res.name + (res.id === "free" ? ": +5 points." : ". Turn used."));
     finish();
   }
 
-  function reveal(lv) {
-    var p = g.players[g.turn], i = p.inv;
-    if (!(i.x2 || i.x3 || i.shield)) return askQuestion(lv);
-    // Build power-up data for guest
-    var puData = { id: "pu", points: lv.points, time: lv.time, options: [] };
-    Overlays.PU.forEach(function (b) {
-      if (i[b[0]]) puData.options.push({ id: b[0], name: b[1], count: i[b[0]] });
-    });
-    broadcastSnap({ pu: puData });
-    Overlays.powerUp(g, lv).then(function (chosen) {
-      broadcastSnap({ pu: null });
-      askQuestion(lv);
-    });
+  // The Easter egg. On the host's screen when the host plays that turn, or when both teams hit it. Otherwise only on
+  // the screen of the guest who hit it (the host just sees the status line).
+  function eggFlow(shared, cb) {
+    var seat = g.turn, done = false, t = null;
+    var fin = function () {
+      if (done) return; done = true; clearTimeout(t);
+      pend = null; S.egg = null; $("egg").hidden = true;
+      cb();
+    };
+    S.egg = { shared: shared }; pend = { seat: seat, ok: fin };
+    if (shared || !remote(seat)) Overlays.egg(shared, fin); else t = later(fin, 30000);
+    broadcastSnap();
   }
 
+  // Power-up choice: after the level is known, before the word. A guest's choice is made on the guest's screen.
+  function reveal(lv) {
+    var seat = g.turn, p = g.players[seat], i = p.inv;
+    if (!(i.x2 || i.x3 || i.shield)) return askQuestion(lv);
+    if (!remote(seat)) return Overlays.powerUp(g, lv).then(function () { askQuestion(lv); });
+    var done = false, t = null, options = [];
+    Overlays.PU.forEach(function (b) { if (i[b[0]]) options.push({ id: b[0], name: b[1], count: i[b[0]] }); });
+    var go = function () { if (done) return; done = true; clearTimeout(t); pend = null; S.pu = null; askQuestion(lv); };
+    S.pu = { level: lv.name, points: lv.points, time: lv.time, options: options };
+    pend = { seat: seat, arm: function (a) { Game.arm(g, a.p); render(); }, go: go };
+    t = later(go, 90000); // the guest went away: carry on without a power-up choice
+    say(p.name + " is choosing a power-up...");
+    render();
+  }
+
+  // The question. The host picks the word once. If a guest plays this turn, only that guest sees the words and
+  // answers; the host's screen shows a status line and judges the answer. Otherwise the host's screen asks.
   function askQuestion(lv) {
-    // Build question data for guest (host picks word and shuffles)
-    var list = WORDS[lv.id], u = Overlays.used[lv.id] || (Overlays.used[lv.id] = []);
-    var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
-    if (!pool.length) { u.length = 0; pool = list; }
-    var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
-    var opts = Overlays.shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
-    var rightIndex = opts.findIndex(function (o) { return o.ok; });
-    var qData = { id: "q", word: w.word, level: lv.name, points: lv.points, opts: opts.map(function (o) { return o.t; }), secs: lv.time, rightIndex: rightIndex };
-    broadcastSnap({ q: qData });
-    Overlays.question(g, lv).then(function (result) {
-      var p = g.players[g.turn];
-      say((result.k === null ? "Time is up. " : result.ok ? "Correct. " : "Wrong. ") + who() + " gets " + pl(result.pts, "point") + ".");
+    var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv);
+    var announce = function (ok, k, pts) { say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "."); };
+    say(p.name + " is answering...");
+    if (!remote(seat)) {
+      broadcastSnap();
+      return Overlays.question(g, lv, pre).then(function (r) {
+        announce(r.ok, r.k, r.pts); render();
+        $("q-next").hidden = false; $("q-next").focus();
+        $("q-next").onclick = function () { $("q").hidden = true; finish(); };
+      });
+    }
+    var stage = 0, t = null;
+    var q = { n: ++qN, word: pre.word, level: lv.name, points: lv.points, secs: lv.time, boost: p.armed, opts: pre.opts.map(function (o) { return o.t; }), res: null };
+    var next = function () { if (stage !== 1) return; stage = 2; clearTimeout(t); pend = null; S.q = null; finish(); };
+    var ans = function (a) {
+      if (stage !== 0) return;
+      var k = typeof a.i === "number" && a.i >= 0 && a.i < pre.opts.length ? a.i : null;
+      if (a.i !== -1 && k === null) return; // not a valid choice: ignore it
+      stage = 1; clearTimeout(t);
+      var ok = k !== null && pre.opts[k].ok, pts = Game.answer(g, lv, ok);
+      q.res = { k: k === null ? -1 : k, right: pre.right, ok: ok, pts: pts };
+      announce(ok, k, pts);
+      pend = { seat: seat, next: next };
+      t = later(next, 30000);
       render();
-      broadcastSnap({ q: null });
-      // Show continue button
-      $("q-next").hidden = false; $("q-next").focus();
-      $("q-next").onclick = function () { $("q").hidden = true; finish(); };
-    });
+    };
+    S.q = q; pend = { seat: seat, ans: ans };
+    t = later(function () { ans({ i: -1 }); }, lv.time * 1000 + 6000); // the guest went away: counts as time up
+    render();
   }
 
   function finish() { var r = Game.endTurn(g); busy = false; after(r); }
-  function after(r) { if (r === "sudden") startSudden(); render(); broadcastSnap({}); }
+  function after(r) { if (r === "sudden") startSudden(); render(); }
   function turnOf(t) { g.turn = Game.rep(g, t); g.pos = g.order.indexOf(g.turn); }
   function startSudden() {
     sd = { who:0, vals:[null, null] }; turnOf(0);
@@ -712,33 +733,43 @@
       var r = sd.vals[0], b = sd.vals[1];
       if (r !== b) { g.over = true; g.winner = r > b ? 0 : 1; g.reason = "won sudden death"; sd = null; return render(); }
       if (r !== Game.value({ id:"egg" })) { say("Tied again. Each team spins once more."); sd.who = 0; turnOf(0); return render(); }
-      broadcastSnap({ egg: { shared: true } });
-      Overlays.egg(true, function () { broadcastSnap({ egg: null }); g.over = true; g.winner = null; g.reason = "both teams share the win"; sd = null; render(); });
+      eggFlow(true, function () { g.over = true; g.winner = null; g.reason = "both teams share the win"; sd = null; render(); });
     };
-    if (res.id === "egg") { broadcastSnap({ egg: { shared: false } }); Overlays.egg(false, function () { broadcastSnap({ egg: null }); go(); }); } else go();
+    if (res.id === "egg") eggFlow(false, go); else go();
   }
 
   /* ---------- resign and draw ---------- */
-  function doResign() {
+  // skipAsk: a guest already confirmed on their own screen.
+  function doResign(skipAsk) {
     var p = g.players[g.turn];
-    Overlays.ask(p.name + ", resign the game?" + (g.mode === "2v2" ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"]).then(function (k) {
-      if (k !== 0) return;
+    var go = function () {
       var r = Game.resign(g);
       if (!g.over) say(p.name + " resigned.");
       after(r);
-    });
+    };
+    if (skipAsk) return go();
+    Overlays.ask(p.name + ", resign the game?" + (g.mode === "2v2" ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"]).then(function (k) { if (k === 0) go(); });
   }
+  // The offer goes to the other side only: a dialog on this screen if the host plays that player, otherwise on the
+  // guest's own screen. Nothing else can be pressed while it is open.
   function doDraw() {
-    var p = g.players[g.turn], o = g.teams[other(p.team)];
-    g.offered = true; render(); broadcastSnap({});
-    // Find target seat for draw offer (first player of other team)
-    var targetSeat = Game.rep(g, other(p.team));
-    broadcastSnap({ drawOffer: { targetSeat: targetSeat, fromName: p.name } });
-    Overlays.ask(o.name + ", " + p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ". Accept?", ["Accept draw", "Decline"]).then(function (k) {
-      broadcastSnap({ drawOffer: null });
-      if (k === 0) Game.draw(g); else say("Draw declined.");
-      render(); broadcastSnap({});
-    });
+    var p = g.players[g.turn], o = g.teams[other(p.team)], target = Game.rep(g, other(p.team)), done = false, t = null;
+    var reply = function (accept) {
+      if (done) return; done = true; clearTimeout(t);
+      drawP = null; S.drawOffer = null; offering = false;
+      if (accept) Game.draw(g); else say("Draw declined.");
+      render();
+    };
+    g.offered = true; offering = true;
+    S.drawOffer = { targetSeat: target, fromName: p.name };
+    say(p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ".");
+    render();
+    if (remote(target)) {
+      drawP = { seat: target, resolve: reply };
+      t = later(function () { reply(false); }, 60000);
+    } else {
+      Overlays.ask(o.name + ", " + p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ". Accept?", ["Accept draw", "Decline"]).then(function (k) { reply(k === 0); });
+    }
   }
 
   /* ---------- New game: returns to lobby if hosting, else setup ---------- */
@@ -747,9 +778,10 @@
     if (g.over) {
       if (hosting) {
         // Return to lobby with same guests
+        resetFlow();
         host.session.setPhase("lobby");
         $("game").hidden = true; $("lobby").hidden = false;
-        renderLobby(hostCfg.seats, "lobby");
+        renderLobby(host.session.seats, "lobby");
       } else {
         showSetup();
       }
@@ -762,13 +794,13 @@
   }
 
   /* ---------- event wiring ---------- */
-  $("spin").onclick = spin;
+  $("spin").onclick = function () { if (g && !remote(g.turn)) spin(); };
   $("start").onclick = start;
   $("warn-ok").onclick = function () { $("warn").close(); };
   $("game").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-act]");
-    if (!b || b.disabled || +b.dataset.p !== g.turn) return;
-    if (b.dataset.act === "draw") doDraw(); else doResign();
+    if (!b || b.disabled || +b.dataset.p !== g.turn || remote(g.turn) || !idle() || sd) return;
+    if (b.dataset.act === "draw") doDraw(); else doResign(false);
   });
   $("mtabs").addEventListener("click", function (e) {
     var b = e.target.closest("button[data-tab]");

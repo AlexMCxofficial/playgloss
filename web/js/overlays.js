@@ -32,14 +32,22 @@ var Overlays = (function () {
     });
   }
 
-  // Question overlay: shows word and shuffled options. Returns a Promise that resolves with the chosen index (or null for timeout).
-  function question(g, lv, onAnswer) {
+  // Picks the next word of a level and shuffles its answers. The host calls this once per question, so the screen
+  // that shows the question and the screen that judges it always agree.
+  function pick(lv) {
+    var list = WORDS[lv.id], u = used[lv.id] || (used[lv.id] = []);
+    var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
+    if (!pool.length) { u.length = 0; pool = list; }
+    var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
+    var opts = shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
+    return { word: w.word, opts: opts, right: opts.findIndex(function (o) { return o.ok; }) };
+  }
+
+  // Question overlay on this screen: shows word and shuffled options. pre is a question made by pick() (a new one
+  // is picked when it is missing). Returns a Promise that resolves with the result.
+  function question(g, lv, pre) {
     return new Promise(function (resolve) {
-      var list = WORDS[lv.id], u = used[lv.id] || (used[lv.id] = []);
-      var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
-      if (!pool.length) { u.length = 0; pool = list; }
-      var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
-      var opts = shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
+      var q = pre || pick(lv), w = { word: q.word }, opts = q.opts;
       var boost = g.players[g.turn].armed, finished = false;
       $("q-level").textContent = lv.name + ", " + pl(lv.points, "point") + (boost ? ", " + (boost === "shield" ? "Shield" : boost.replace("x", "") + "x") + " active" : "");
       $("q-word").textContent = w.word;
@@ -73,21 +81,28 @@ var Overlays = (function () {
     $("egg-ok").onclick = function () { $("egg").hidden = true; cb(); };
   }
 
-  // Generic ask dialog
+  // Generic ask dialog. Questions wait their turn, so a second one never tries to open over the first.
+  var askQueue = Promise.resolve();
   function ask(text, btns) {
-    return new Promise(function (res) {
-      var d = $("dlg"), box = $("dlg-btns"); $("dlg-text").textContent = text; box.textContent = "";
-      d.oncancel = function (e) { e.preventDefault(); };
-      btns.forEach(function (b, k) { var e = h("button", "small", b); e.onclick = function () { d.close(); res(k); }; box.appendChild(e); });
-      d.showModal();
+    var p = askQueue.then(function () {
+      return new Promise(function (res) {
+        var d = $("dlg"), box = $("dlg-btns"); $("dlg-text").textContent = text; box.textContent = "";
+        d.oncancel = function (e) { e.preventDefault(); };
+        btns.forEach(function (b, k) { var e = h("button", "small", b); e.onclick = function () { d.close(); res(k); }; box.appendChild(e); });
+        d.showModal();
+      });
     });
+    askQueue = p.catch(function () {});
+    return p;
   }
+  // Drops every open or waiting question (the game they belong to is over). Their answers never arrive.
+  function cancelAsk() { askQueue = Promise.resolve(); var d = $("dlg"); if (d.open) d.close(); }
 
   function shuffle(a) { for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
   // These need to be available globally for the host game loop
   var used = {};
 
-  return { powerUp: powerUp, question: question, egg: egg, ask: ask, shuffle: shuffle, PU: PU, used: used };
+  return { powerUp: powerUp, pick: pick, question: question, egg: egg, ask: ask, cancelAsk: cancelAsk, shuffle: shuffle, PU: PU, used: used };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Overlays;
