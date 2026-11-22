@@ -68,11 +68,32 @@ jobs:
 
       - run: npx tauri android build --apk
 
-      - name: Collect APKs
+      # Signs every APK with your keystore, stored in GitHub Secrets:
+      # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
+      - name: Align and sign APKs
         shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          BT="$ANDROID_HOME/build-tools/34.0.0"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
           mkdir dist
-          find src-tauri/gen/android -path "*/outputs/apk/*" -name "*.apk" -exec cp {} dist/ \;
+          find src-tauri/gen/android -path "*/outputs/apk/*" -name "*.apk" | while read -r apk; do
+            name="$(basename "$apk" .apk)"
+            name="${name%-unsigned}"
+            "$BT/zipalign" -p -f 4 "$apk" "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" sign \
+              --ks "$RUNNER_TEMP/release.jks" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass env:KEYSTORE_PASSWORD \
+              --key-pass env:KEYSTORE_PASSWORD \
+              --out "dist/$name-signed.apk" \
+              "$RUNNER_TEMP/aligned.apk"
+            "$BT/apksigner" verify "dist/$name-signed.apk"
+          done
+          rm -f "$RUNNER_TEMP/release.jks"
           ls -l dist
           test -n "$(ls -A dist)"
 
