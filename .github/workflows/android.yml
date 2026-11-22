@@ -34,12 +34,18 @@ jobs:
           workspaces: src-tauri
           key: android
 
-      - name: Install Android SDK
+      # Fix: the action's default package list contains the obsolete 'tools'
+      # package, which no longer exists in recent cmdline-tools and makes
+      # sdkmanager fail. An empty list skips it; we install what we need below.
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
 
-      - name: Install Android NDK
+      - name: Install Android platform, build-tools and NDK
         run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
           echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
 
       - run: npm install
