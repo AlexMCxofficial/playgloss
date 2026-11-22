@@ -95,7 +95,10 @@ test("actions: only in a game, only from a seat, only the allowed list, fields c
   a.act("spin"); a.act("arm", { p:"x2" }); a.act("ans", { i:3 }); a.act("draw"); a.act("yes");
   assert.deepStrictEqual(r.actions.map(x => x[0] + ":" + x[1].a), ["1:spin", "1:arm", "1:ans", "1:draw", "1:yes"]);
   r.actions.length = 0;
-  a.act("ans", { i:-1 }); a.act("ans", { i:1.5 }); a.act("ans", { i:"2" }); a.act("ans", { i:99 }); a.act("arm", { p:"god" }); a.act("arm");
+  a.act("ans", { i:-1 }); // -1 is how a guest says "time is up"
+  assert.deepStrictEqual(r.actions.map(x => x[0] + ":" + x[1].a + ":" + x[1].i), ["1:ans:-1"]);
+  r.actions.length = 0;
+  a.act("ans", { i:-2 }); a.act("ans", { i:1.5 }); a.act("ans", { i:"2" }); a.act("ans", { i:99 }); a.act("arm", { p:"god" }); a.act("arm");
   a.act("score"); a.act("__proto__"); a.act("constructor"); a.act("toString");
   assert.strictEqual(r.actions.length, 0);
 });
@@ -185,6 +188,21 @@ test("game pictures: good ones pass, names are filtered again, bad ones are refu
   bad(x => x.teams[0].color = "red; background:url(//evil)"); bad(x => x.mode = "5v5"); bad(x => x.players.pop()); bad(x => x.turn = 9);
   bad(x => x.players[0].score = "9"); bad(x => x.order = [0, 0, 0, 7]); bad(x => x.teams[1].players = [0, 99]); bad(x => x.players[2].inv = null);
   assert.strictEqual(Session.cleanSnap(null, Filter), null); assert.strictEqual(Session.cleanSnap("x", Filter), null);
+});
+
+test("extras of a game message (question, power-up, draw offer) are cleaned, and an open question has no right answer in it", () => {
+  const x = Session.cleanExtras({ msg: "Ann is answering...", busy: 1, spin: { n: 3, index: 2 }, egg: { shared: 1 },
+    drawOffer: { targetSeat: 1, fromName: "Ann" },
+    pu: { level: "Hard", points: 4, time: 20, options: [{ id: "x2", name: "2x", count: 1 }, { id: "evil", name: "x", count: 1 }] },
+    q: { n: 5, word: "serene", level: "Easy", points: 2, secs: 15, boost: "x2", opts: ["a", "b", "c", "d"], rightIndex: 2, res: null } });
+  assert.deepStrictEqual([x.msg, x.busy, x.spin.n, x.spin.index, x.egg.shared, x.drawOffer.targetSeat], ["Ann is answering...", true, 3, 2, true, 1]);
+  assert.deepStrictEqual(x.pu.options, [{ id: "x2", name: "2x", count: 1 }]); // unknown power-ups are dropped
+  assert.strictEqual(x.q.res, null); assert.strictEqual(x.q.rightIndex, undefined); assert.strictEqual(x.q.opts.length, 4);
+  const r = Session.cleanExtras({ q: { n: 5, word: "w", level: "L", points: 2, secs: 15, opts: ["a", "b"], res: { k: -1, right: 1, ok: false, pts: 0 } } });
+  assert.deepStrictEqual(r.q.res, { k: -1, right: 1, ok: false, pts: 0 });
+  assert.strictEqual(Session.cleanExtras({ q: { opts: ["only one"] } }).q, null); // not enough answers: no question
+  assert.strictEqual(Session.cleanExtras({ q: { opts: new Array(50).fill("a") } }).q, null);
+  assert.strictEqual(Session.cleanExtras(null).q, null); assert.strictEqual(Session.cleanExtras("x").msg, "");
 });
 
 console.log("session tests: " + n + " passed");
