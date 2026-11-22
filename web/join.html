@@ -51,7 +51,7 @@
 <h2 class="sethead">Lobby</h2>
 <p id="lobby-status" class="note"></p>
 <div id="lobby-seats" class="panels"></div>
-<div class="row"><button id="lobby-leave" class="small" type="button" hidden>Leave</button></div>
+<div class="row"><button id="lobby-leave" class="small act" type="button" hidden>Leave</button></div>
 </section>
 
 <!-- the game (same structure as play.html) -->
@@ -62,7 +62,7 @@
 <aside class="side"><div id="lb-0" class="lb"></div><div id="cards-0" class="cards"></div></aside>
 <div class="center">
 <p class="turn" id="turn" aria-live="polite"></p>
-<div class="stage"><div class="pointer" aria-hidden="true"></div><div id="wheel"></div></p>
+<div class="stage"><div class="pointer" aria-hidden="true"></div><div id="wheel"></div></div>
 <p id="msg" role="status" aria-live="polite"></p>
 <div class="controls">
 <button id="spin" class="spin" type="button" disabled>Spin</button>
@@ -135,6 +135,7 @@
 <script src="js/online/proto.js"></script>
 <script src="js/online/session.js"></script>
 <script src="js/online/guest.js"></script>
+<script src="js/online/link.js"></script>
 <script src="js/join.js"></script>
 </body>
 </html>
