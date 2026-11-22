@@ -17,10 +17,10 @@
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
   window.onerror = function (msg, url, line) {
-    // Only report errors from this page's own scripts. Browser extensions (crypto wallets, ad blockers, Brave's
-    // shields) inject code that fails on its own, and browsers report those with no file, or as "Script error."
-    // at line 0. They are not ours and must not alarm the player.
-    var own = typeof url === "string" && url && (url.indexOf(location.origin) === 0 || /\/js\/[\w\/.-]+\.js/.test(url)) && !/^(chrome|moz|safari|brave)-extension:/.test(url);
+    // Only report errors from PlayGloss's own script files (everything lives under js/, there are no inline scripts).
+    // Extensions such as crypto wallets inject code into the page and their errors carry the page's own URL, so
+    // checking for the page origin is not enough. Browsers also report anonymous errors as "Script error." at line 0.
+    var own = typeof url === "string" && /\/js\/[^?#]+\.js([?#]|$)/.test(url);
     if (!own) { console.warn("Ignored error from outside the page:", msg, url, line); return true; }
     var d = $("err-box");
     if (!d) {
