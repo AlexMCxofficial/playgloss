@@ -3,8 +3,15 @@
 var Host = (function () {
   "use strict";
   var $ = function (i) { return document.getElementById(i); };
-  var invoke = window.__TAURI__.core.invoke;
-  var listen = window.__TAURI__.event.listen;
+  // Resolved on use: outside the app (a plain browser such as Brave) window.__TAURI__ does not exist, and reading
+  // it while this script loads used to throw and show the red "Script error" bar.
+  function tauri() {
+    var T = window.__TAURI__;
+    if (!T || !T.core || !T.event) throw new Error("Hosting only works in the Playgloss app.");
+    return T;
+  }
+  var invoke = function (cmd, args) { return tauri().core.invoke(cmd, args); };
+  var listen = function (name, cb) { return tauri().event.listen(name, cb); };
 
   // o: { ui, cfg, Proto, Filter, K, rnd }
   // ui: { onLobbyUpdate(seats, phase), onGuestRequest(id, name), onGuestLeft(id), onGameStart(), onGameSnap(g, sd, msg, spin), onStop() }
