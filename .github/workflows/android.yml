@@ -50,6 +50,16 @@ jobs:
             npx tauri android init
           fi
 
+      # The QR scanner in Online > Join a game needs the camera. The camera is only used after the player presses
+      # "Scan QR code", and it is optional (devices without a camera can still install the app).
+      - name: Allow the camera for QR scanning
+        run: |
+          M=src-tauri/gen/android/app/src/main/AndroidManifest.xml
+          if ! grep -q "android.permission.CAMERA" "$M"; then
+            sed -i '0,/<application/s//<uses-permission android:name="android.permission.CAMERA" \/>\n    <uses-feature android:name="android.hardware.camera" android:required="false" \/>\n    <application/' "$M"
+          fi
+          grep -n "CAMERA\|hardware.camera" "$M"
+
       - run: npx tauri android build --apk
 
       - name: Collect APKs
