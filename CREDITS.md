@@ -54,6 +54,8 @@ The apps are built with [Tauri](https://tauri.app/), including its window and we
 
 ## Shipped with the game (online play only)
 
+The in-app join client (`src-tauri/src/guest.rs`), the join link reader (`web/js/online/link.js`) and the in-app QR scanning are original PlayGloss code under the MIT License. QR scanning uses the `BarcodeDetector` that a browser or system already provides; no scanning library is included, so there is nothing extra to credit or license.
+
 ### lean-qr by David Evans (MIT)
 
 A minimal QR code generator, used to draw the QR code that guests scan to join a hosted game. Only the single file `web/js/online/lean-qr.js` is included, taken from the ha.mr repository by p2r3.

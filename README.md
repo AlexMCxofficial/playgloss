@@ -5,7 +5,7 @@ An English guess-the-meaning game for one to four players sharing one screen. Sp
 - Free and open source (MIT)
 - No ads, no trackers, no accounts, no data collection
 - Works fully offline, on phone and desktop, in dark or light mode
-- Play online on the same network: one person hosts from the app, guests join by link or QR code (opt-in, off by default)
+- Play online on the same network with the **Online** option on the Play page: host from the app (opt-in, off by default), join from the app or the website by pasting the link or scanning the QR code
 - Play in the browser: https://alexmcxofficial.github.io/playgloss/
 
 ## Download
@@ -60,7 +60,7 @@ The full rules, the exact odds and install steps for every platform are in [`web
 - Wrong answers are chosen automatically from other words' meanings, so a few may be accidentally right or oddly worded. Report any you find.
 - The word list uses each word's most common meaning only.
 - Memory use differs a lot between systems because the apps use each system's own web engine. I have not measured it properly yet.
-- Online play only works on a local network (Wi-Fi or LAN), not over the internet. It is off by default and only starts when you press "Host a game" after turning it on in Settings.
+- Online play only works on a local network (Wi-Fi or LAN), not over the internet. Hosting is off by default and only starts when you choose Online, then press "Host a game", after turning it on in Settings. Joining only connects to a private network address that you paste or scan. The website can join a game but cannot host one, and the in-app QR scanner needs a system or browser with a built-in QR reader (for example Chrome on Android).
 
 ## Run it locally
 

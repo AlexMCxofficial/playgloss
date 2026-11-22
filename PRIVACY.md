@@ -8,13 +8,17 @@ PlayGloss collects nothing.
 - If you install the website as a web app, your browser also keeps a copy of the game's own files so it works offline. Nothing about you is stored in it.
 - Scores, power-ups and answers exist only while the page is open. Nothing about a game is saved or sent.
 
-## Online play on the same network (opt-in)
+## Online play on the same network
 
-Online play never runs unless you turn it on, and it only uses your own local network:
+The Play page has an **Online** option to host or join a game. Hosting never runs unless you turn it on, and everything only uses your own local network:
 
 - The **Settings** switch "Play Online" only unlocks the feature; it is off by default and nothing listens on the network while it is off.
-- The small network server starts only when you press **"Host a game"** on the Play page, and stops when you press Stop, leave the page, close the app, or the game ends.
-- It runs on your own Wi-Fi or LAN only. Guests join by opening a link or scanning a QR code on the same network. Nothing goes over the internet.
+- The small network server starts only when you choose **Online**, then press **"Host a game"** on the Play page, and stops when you press Stop, leave the page, close the app, or the game ends.
+- It runs on your own Wi-Fi or LAN only. Guests join with **Online > Join a game** (paste the link or scan the QR code), or by opening the link in any browser, on the same network. Nothing goes over the internet.
+- **Joining** needs no switch and opens no port. It only connects to the address in the link you give it, and only if that address is on a private network (such as 192.168.x.x or 10.x.x.x); a link to anything else is refused. In the app, a small built-in client does the connecting; on the website, the link opens the host's own join page.
+- **Scanning a QR code** uses your camera only after you press the button and only while the preview is open. The picture is read on your device by the browser's or system's own QR reader. It is never saved, recorded or sent anywhere, and the camera is switched off when you scan, cancel or leave. Your link is never sent to PlayGloss or anyone else.
+- **Paste link** reads your clipboard only when you press it, once, and keeps nothing.
+- Game messages are encrypted with the secret in the link. The host's server and the join client only pass them along and never read them.
 - The secret part of the join link (after the `#`) never leaves your browser. It travels only by the link or QR code you share yourself.
 - Guest names are checked with the same name filter on every device. Offensive names are refused.
 - You approve every guest who asks to join, and you can kick anyone at any time.
