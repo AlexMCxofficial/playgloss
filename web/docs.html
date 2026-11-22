@@ -41,6 +41,7 @@
 <li><strong>Solo</strong>: just you. Keep spinning until you reach 100 points. There is no other team, so no resign or draw, and the game tells you how many turns it took.</li>
 <li><strong>1 vs 1</strong>: two players take turns. Each has a card beside the wheel with their name, color, score and power-ups, and their own Offer draw and Resign buttons below it. A random draw decides who goes first.</li>
 <li><strong>2 vs 2</strong>: two teams of two. Every player has a card with their own score and power-ups. A Team Scoreboard above the wheel shows each team's combined score, and a leaderboard beside the wheel shows how much each player adds to their team. Read Turn order in 2 vs 2 below.</li>
+<li><strong>Online</strong>: play 1 vs 1 or 2 vs 2 with people on the same Wi-Fi or network, each on their own device. See Online play below.</li>
 </ul>
 
 <h3>Names and colors</h3>
@@ -182,24 +183,38 @@
 <h2>Privacy</h2>
 <p>PlayGloss collects nothing. There are no accounts, analytics, cookies, ads or trackers, and the game makes no network requests while you play. Your settings (theme, color scheme and custom accent color) are saved only on your own device and are never sent anywhere, and if you install the website as a web app, your browser keeps a copy of the game's files so it works offline. Names, colors and scores are held in your browser tab's temporary session storage only so they survive a visit to another page, and they are erased when you close the tab or app. They are never sent anywhere. Read the full <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/PRIVACY.md">privacy notice</a>.</p>
 
-<h2>Online play on the same network (opt-in)</h2>
-<p>PlayGloss can host a game on your own Wi-Fi or local network so friends can join from any phone, tablet or computer browser, with nothing to install. Online play never runs unless you turn it on.</p>
-<h3>How to host</h3>
+<h2>Online play on the same network</h2>
+<p>The Play page has a fourth option next to Solo, 1 vs 1 and 2 vs 2: <strong>Online</strong>. It lets you host a game on your own Wi-Fi or local network, or join a game that someone else hosts. Hosting is opt-in and never runs unless you turn it on. Joining only connects to the address you give it.</p>
+<h3>How to host (app only)</h3>
 <ol>
-<li>Open Settings and switch <strong>Play Online</strong> on. This only unlocks the feature; nothing listens on the network yet.</li>
-<li>Open the Play page and press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
-<li>Share the link shown on screen, or let guests scan the QR code. The secret part of the link (after the #) never leaves your browser.</li>
-<li>Each guest who asks to join appears in your lobby with Approve and Refuse buttons. You choose which seats guests can take ("Open for a guest") and which you keep ("This device").</li>
+<li>Open Settings and switch <strong>Play Online</strong> on. This only unlocks hosting; nothing listens on the network yet.</li>
+<li>Open the Play page, choose <strong>Online</strong>, then <strong>Host a game</strong>, pick 1 vs 1 or 2 vs 2 and set the names. Press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
+<li>Share the link shown on screen, or let guests scan the QR code. The secret part of the link (after the #) never leaves the devices that have the link.</li>
+<li>Each guest who asks to join appears in your lobby. You choose which seats guests can take ("Open for guest") and which you keep ("This device"), and you can remove anyone at any time.</li>
 <li>Press <strong>Start game</strong> when everyone is seated. Guests see the same game screen as you and spin, answer and draw on their turns.</li>
 <li>Press <strong>Stop hosting</strong> when you are done. The server stops, all guests are disconnected, and you are back to the setup screen.</li>
 </ol>
-<h3>Important notes</h3>
+<h3>How to join</h3>
+<ol>
+<li>Connect to the same Wi-Fi or network as the host.</li>
+<li>Open the Play page, choose <strong>Online</strong>, then <strong>Join a game</strong>.</li>
+<li>Paste the join link (the <strong>Paste link</strong> button reads your clipboard only when you press it), or press <strong>Scan QR code</strong> and point the camera at the host's code. The scan button only appears where the app or browser has a built-in QR reader and camera access.</li>
+<li>Enter your name, wait for the host to let you in, and take a free seat.</li>
+</ol>
+<p>You can also still join without the Online option: scan the host's QR code with any camera app, or open the link in any browser, including Safari on iPhone and iPad. Nothing needs to be installed.</p>
+<h3>In the app and on the website</h3>
 <ul>
-<li>Online play only works in the PlayGloss app for Windows, macOS, Linux or Android — the website cannot host because an https page cannot talk to an http address on your local network.</li>
-<li>Guests can join from any browser, including Safari on iPhone and iPad.</li>
+<li><strong>App (Windows, macOS, Linux, Android):</strong> you can host and join. When you join, the app itself connects to the host, so you stay inside PlayGloss.</li>
+<li><strong>Website:</strong> you can join but not host. An https page cannot run a server or talk to an http address on your local network, so joining from the website opens the host's own join page in the same tab. Some browsers with a "HTTPS only" mode may warn you about that http address; the join page is on your own network, so you can continue if you trust it.</li>
+</ul>
+<h3>Privacy and safety</h3>
+<ul>
+<li>Nothing is collected and there are no accounts. Everything stays on your local network and is encrypted between the devices using the secret in the link.</li>
+<li>A join link is only accepted if it points to a private network address (for example 192.168.x.x or 10.x.x.x). A link can never make PlayGloss connect to a server on the internet.</li>
+<li>Scanning happens on your device. The camera picture is never saved or sent, and the camera is switched off as soon as you scan, cancel or leave the page.</li>
 <li>Only use online play on a network you trust, such as your home Wi-Fi, not on public Wi-Fi.</li>
 <li>Windows and macOS may ask you to allow network access the first time you host.</li>
-<li>The game itself never sends anything over the internet. All online play traffic stays on your local network.</li>
+<li>The game itself never sends anything over the internet.</li>
 </ul>
 
 <h2>License and credits</h2>
