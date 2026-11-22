@@ -1,7 +1,7 @@
 // PlayGloss service worker. MIT License (see LICENSE).
 // Keeps a copy of the game on the device so it works offline.
 // When you change any file in web/, change the number in CACHE so devices fetch the new version.
-var CACHE = "playgloss-v8";
+var CACHE = "playgloss-v9";
 var FILES = [
   "./", "index.html", "play.html", "join.html", "docs.html", "settings.html", "manifest.json", "logo.svg",
   "css/style.css",
