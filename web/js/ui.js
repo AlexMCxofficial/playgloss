@@ -9,6 +9,7 @@
   var cfg = defaults(), g = null, sd = null, used = Overlays.used, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
 
   // Online play state
+  var online = false, oTab = "join", stopScan = null; // the fourth option, "Online": which view is open
   var host = null, hosting = false, stopping = false, hostCfg = null, qrModule = null;
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
@@ -96,26 +97,132 @@
   }
 
   function drawSetup() {
+    if (stopScan) stopScan();
+    if (online && oTab === "host" && cfg.mode === "solo") cfg.mode = "1v1"; // a hosted game needs two sides
     var box = $("setup-body"), solo = cfg.mode === "solo", modes = h("div", "row"), panels = h("div", "panels");
     if (!solo) apart(cfg);
     pickers = []; box.textContent = "";
     modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Game mode");
     MODES.forEach(function (m) {
       var b = h("button", "small", m[1]); b.type = "button";
-      b.setAttribute("aria-pressed", cfg.mode === m[0]);
-      b.onclick = function () { cfg.mode = m[0]; drawSetup(); save(); };
+      b.setAttribute("aria-pressed", !online && cfg.mode === m[0]);
+      b.onclick = function () { online = false; cfg.mode = m[0]; drawSetup(); save(); };
       modes.appendChild(b);
     });
+    var ob = h("button", "small", "Online"); ob.type = "button";
+    ob.setAttribute("aria-pressed", online);
+    ob.onclick = function () { online = true; drawSetup(); save(); };
+    modes.appendChild(ob);
     box.appendChild(modes);
+    $("start").parentNode.hidden = online; // "Start game" is for games on this device
+    if (online) return drawOnline(box);
     for (var ti = 0; ti < (solo ? 1 : 2); ti++) panels.appendChild(panel(ti));
     box.appendChild(panels);
+  }
 
-    // Host a game button (only in app with online enabled)
-    if (onlineEnabled()) {
-      var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
-      hostBtn.onclick = startHosting;
-      box.appendChild(h("div", "row")).appendChild(hostBtn);
+  /* ---------- the "Online" option: host a game, or join one ---------- */
+  function drawOnline(box) {
+    var tabs = h("div", "row"), app = !!window.__TAURI__;
+    tabs.setAttribute("role", "group"); tabs.setAttribute("aria-label", "Online");
+    [["join", "Join a game"], ["host", "Host a game"]].forEach(function (t) {
+      var b = h("button", "small", t[1]); b.type = "button";
+      b.setAttribute("aria-pressed", oTab === t[0]);
+      b.onclick = function () { oTab = t[0]; drawSetup(); };
+      tabs.appendChild(b);
+    });
+    box.appendChild(tabs);
+    if (oTab === "join") return drawJoin(box);
+    // host
+    if (!app) { box.appendChild(h("p", "note", "Hosting needs the PlayGloss app for Windows, macOS, Linux or Android. In the browser you can join a game that someone else hosts.")); return; }
+    if (!onlineEnabled()) {
+      var p = h("p", "note", "Play Online is off. Turn it on in "), a = h("a", "", "Settings");
+      a.href = "settings.html"; p.appendChild(a); p.appendChild(document.createTextNode(" to host a game on your own network."));
+      box.appendChild(p); return;
     }
+    var sides = h("div", "row"), panels = h("div", "panels");
+    sides.setAttribute("role", "group"); sides.setAttribute("aria-label", "Game mode");
+    MODES.slice(1).forEach(function (m) {
+      var b = h("button", "small", m[1]); b.type = "button";
+      b.setAttribute("aria-pressed", cfg.mode === m[0]);
+      b.onclick = function () { cfg.mode = m[0]; drawSetup(); save(); };
+      sides.appendChild(b);
+    });
+    box.appendChild(sides);
+    for (var ti = 0; ti < 2; ti++) panels.appendChild(panel(ti));
+    box.appendChild(panels);
+    var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
+    hostBtn.onclick = startHosting;
+    box.appendChild(h("div", "row")).appendChild(hostBtn);
+    box.appendChild(h("p", "note", "Players on the same Wi-Fi join with your link or QR code. You approve every guest. Nothing goes over the internet."));
+  }
+
+  function drawJoin(box) {
+    var app = !!window.__TAURI__, wrap = h("div", "field"), lab = h("span", "flabel", "Join link"), row = h("div", "frow"), input = h("input");
+    var status = h("p", "note"), buttons = h("div", "row");
+    status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+    input.type = "text"; input.maxLength = 120; input.autocomplete = "off"; input.spellcheck = false;
+    input.setAttribute("inputmode", "url"); input.setAttribute("aria-label", "Join link"); input.placeholder = "http://192.168.1.23:49152/join.html#...";
+    row.appendChild(input); wrap.appendChild(lab); wrap.appendChild(row);
+    box.appendChild(h("p", "note", "Ask the host for the join link or QR code. Both only work on the same Wi-Fi or network as the host."));
+    box.appendChild(wrap);
+
+    function join(text) {
+      var l = Link.parse(text);
+      if (!l) { status.textContent = "That is not a PlayGloss join link. Ask the host to share it again."; return; }
+      status.textContent = "Connecting...";
+      location.href = app ? Link.appUrl(l) : l.url; // the host still has to let you in
+    }
+    var go = h("button", "spin", "Join"); go.type = "button";
+    go.onclick = function () { join(input.value); };
+    input.onkeydown = function (e) { if (e.key === "Enter") join(input.value); };
+
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      var paste = h("button", "small act", "Paste link"); paste.type = "button";
+      paste.onclick = function () {
+        navigator.clipboard.readText().then(function (t) { input.value = String(t).trim().slice(0, 120); status.textContent = ""; input.focus(); },
+          function () { status.textContent = "Could not read the clipboard. Paste the link into the box instead."; });
+      };
+      buttons.appendChild(paste);
+    }
+    // Scanning needs the camera and the browser's built-in QR reader; where either is missing the button is not shown.
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.BarcodeDetector) {
+      var scan = h("button", "small act", "Scan QR code"); scan.type = "button";
+      scan.onclick = function () { startScan(box, status, scan, function (text) { input.value = text; join(text); }); };
+      buttons.appendChild(scan);
+    }
+    box.appendChild(buttons);
+    box.appendChild(h("div", "row")).appendChild(go);
+    box.appendChild(status);
+    box.appendChild(h("p", "note", app
+      ? "The app connects to the host for you. The scan happens on this device: the camera picture is never saved or sent anywhere."
+      : "The link opens the host's own join page. Joining from the website needs a browser that allows http links on your local network."));
+  }
+
+  // Camera preview with live QR reading. Only a valid PlayGloss link is accepted; everything else is ignored.
+  function startScan(box, status, btn, done) {
+    if (stopScan) return;
+    var video = h("video"), cancel = h("button", "small act", "Cancel scan"), cam = h("div", "row"), timer = null, stream = null;
+    video.setAttribute("playsinline", ""); video.muted = true; video.setAttribute("aria-label", "Camera"); video.style.cssText = "width:100%;max-width:22rem;border-radius:12px";
+    cancel.type = "button"; cam.appendChild(video); cam.appendChild(cancel);
+    var end = function () {
+      clearInterval(timer); if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+      stream = null; stopScan = null; btn.disabled = false; if (cam.parentNode) cam.parentNode.removeChild(cam);
+    };
+    stopScan = end; cancel.onclick = function () { end(); status.textContent = ""; };
+    btn.disabled = true; status.textContent = "Asking for the camera...";
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }).then(function (st) {
+      if (stopScan !== end) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
+      stream = st; video.srcObject = st; box.appendChild(cam); video.play().catch(function () {});
+      status.textContent = "Point the camera at the host's QR code.";
+      var det = new BarcodeDetector({ formats: ["qr_code"] }), busy2 = false;
+      timer = setInterval(function () {
+        if (busy2 || video.readyState < 2) return;
+        busy2 = true;
+        det.detect(video).then(function (codes) {
+          for (var i = 0; i < codes.length; i++) { var l = Link.parse(codes[i].rawValue); if (l) { end(); done(l.url); return; } }
+        }).catch(function () {}).then(function () { busy2 = false; });
+      }, 300);
+    }, function () { end(); status.textContent = "The camera is not available. Paste the link instead."; });
   }
 
   function field(label, val, f, set, setF) {
@@ -189,13 +296,11 @@
   function startHosting() {
     if (stopping) { alert("Still stopping, please wait..."); return; }
     // Build seat config from current setup
-    var solo = cfg.mode === "solo", two = cfg.mode === "2v2", np = solo ? 1 : two ? 4 : 2;
+    // Solo and 1v1 seats are named after the side (one player per side); only 2v2 uses the individual player names.
     var seats = [];
-    for (var i = 0; i < np; i++) {
-      var ti = solo || cfg.mode === "1v1" ? i : (i < 2 ? 0 : 1);
-      var pi = solo ? 0 : two ? (i % 2) : i;
-      seats.push({ name: cfg.teams[ti].players[pi], open: false }); // default: this device controls all seats
-    }
+    if (cfg.mode === "solo") seats.push({ name: cfg.teams[0].name, open: false });
+    else if (cfg.mode === "1v1") cfg.teams.forEach(function (t) { seats.push({ name: t.name, open: false }); });
+    else cfg.teams.forEach(function (t) { t.players.forEach(function (n) { seats.push({ name: n, open: false }); }); });
     // For 1v1 and 2v2, mark seats as "open for guest" if user wants (we'll add UI for this in lobby)
     hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams };
 
@@ -277,8 +382,7 @@
       // Session seats have no "taken" flag (that only exists in the message sent to guests), so ask the session.
       var p = h("section", "panel"), taken = !!sess.guestOf(i);
       var away = taken && sess.conns[s.guest] && sess.conns[s.guest].away;
-      var ti = hostCfg.mode === "solo" ? 0 : (hostCfg.mode === "1v1" ? i : (i < 2 ? 0 : 1));
-      var pi = hostCfg.mode === "solo" ? 0 : (hostCfg.mode === "1v1" ? i : (i % 2));
+      var ti = i < 2 ? 0 : 1, pi = i % 2;
       var label = hostCfg.mode === "solo" ? "You" : (hostCfg.mode === "1v1" ? "Player " + (i + 1) : "Team " + (ti + 1) + " - Player " + (pi + 1));
       p.appendChild(h("h3", "", label + (s.open ? " (open for guest)" : "")));
       p.appendChild(h("p", "", "Name: " + s.name));
@@ -286,23 +390,37 @@
       if (s.open) {
         if (taken) {
           p.appendChild(h("p", "note", away ? "Guest is away (seat kept)" : "Taken by guest"));
-          var kickBtn = h("button", "small", "Kick"); kickBtn.type = "button";
+          var kickBtn = h("button", "small act", "Remove"); kickBtn.type = "button";
           var gid = s.guest;
-          kickBtn.onclick = function () { try { if (host) host.kick(gid); } catch (e) { console.error("kick error:", e); } };
+          kickBtn.onclick = function () { try { removeGuest(gid); } catch (e) { console.error("kick error:", e); } };
           p.appendChild(kickBtn);
         } else {
-          var takeBtn = h("button", "small", "This device"); takeBtn.type = "button";
+          var takeBtn = h("button", "small act", "This device"); takeBtn.type = "button";
           takeBtn.onclick = function () { try { setSeatControl(i, false); } catch (e) { console.error("setSeatControl error:", e); } };
           p.appendChild(takeBtn);
         }
       } else {
         // This device controls it
-        var openBtn = h("button", "small", "Open for guest"); openBtn.type = "button";
+        var openBtn = h("button", "small act", "Open for guest"); openBtn.type = "button";
         openBtn.onclick = function () { try { setSeatControl(i, true); } catch (e) { console.error("setSeatControl error:", e); } };
         p.appendChild(openBtn);
       }
       box.appendChild(p);
     });
+
+    // Everyone connected, including guests who have no seat yet, so the host can remove anyone.
+    var guests = Object.keys(sess.conns).filter(function (id) { return sess.conns[id].state === "ok"; });
+    if (guests.length) {
+      var gp = h("section", "panel");
+      gp.appendChild(h("h3", "", "Connected guests"));
+      guests.forEach(function (id) {
+        var c = sess.conns[id], row = h("p", "", c.name + (c.seat >= 0 ? "" : " (no seat yet)") + (c.away ? " (away)" : "") + " ");
+        var rb = h("button", "small act", "Remove"); rb.type = "button";
+        rb.onclick = function () { try { removeGuest(id); } catch (e) { console.error("remove error:", e); } };
+        row.appendChild(rb); gp.appendChild(row);
+      });
+      box.appendChild(gp);
+    }
 
     // Start game button (only if all seats have a controller)
     var allControlled = seats.every(function (s, i) { return !s.open || !!sess.guestOf(i); });
@@ -311,6 +429,16 @@
 
     // Re-attach Stop Hosting handler (renderLobby recreates seat panels but not this button)
     $("stop-host").onclick = function () { try { stopHosting(); } catch (e) { console.error("stopHosting error:", e); } };
+  }
+
+  function removeGuest(id) {
+    if (!host || !host.session) return;
+    var sess = host.session, names = {};
+    sess.seats.forEach(function (st, i) { if (st.guest === id) names[i] = true; });
+    host.kick(id);
+    // Put the seat's original name back now that its guest is gone.
+    Object.keys(names).forEach(function (i) { if (sess.seats[i] && hostCfg.seats[i]) sess.seats[i].name = hostCfg.seats[i].name; });
+    renderLobby(sess.seats, sess.phase);
   }
 
   function setSeatControl(seatIndex, open) {
@@ -359,16 +487,16 @@
     try {
     // Build teams from current session seats (which have updated names from guests)
     var sessionSeats = host.session.seats;
+    var nameOf = function (i, dflt) { return sessionSeats[i] ? sessionSeats[i].name : dflt; };
     var teams = hostCfg.teams.map(function (t, ti) {
-      var playerNames = [], playerFmts = [];
-      t.players.forEach(function (_, pi) {
-        var seatIndex = (ti === 0 ? pi : (hostCfg.mode === "2v2" ? 2 + pi : 1));
-        var seat = sessionSeats[seatIndex];
-        playerNames.push(seat ? seat.name : t.players[pi]);
-        playerFmts.push(t.pfmt[pi] || "");
-      });
-      return { name: t.name, fmt: t.fmt, color: t.color, players: playerNames, pfmt: playerFmts };
+      if (hostCfg.mode === "2v2") {
+        return { name: t.name, fmt: t.fmt, color: t.color,
+          players: [nameOf(ti * 2, t.players[0]), nameOf(ti * 2 + 1, t.players[1])], pfmt: t.pfmt.slice() };
+      }
+      var nm = nameOf(ti, t.name); // solo / 1v1: one player per side, named after the side
+      return { name: nm, fmt: t.fmt, color: t.color, players: [nm], pfmt: [t.fmt] };
     });
+    if (hostCfg.mode === "solo") teams = teams.slice(0, 1);
     // Determine turn order (draw)
     var solo = hostCfg.mode === "solo", two = hostCfg.mode === "2v2";
     var go = function (order) {

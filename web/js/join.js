@@ -11,12 +11,24 @@
   try { K = Proto.b64d(hash); } catch (e) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
   if (!K || K.length !== 32) { $("join-status").textContent = "Invalid game code."; $("join").hidden = false; return; }
 
+  // Opened inside the PlayGloss app (join.html?h=<address>#<code>): the app's own small client talks to the host
+  // (src-tauri/src/guest.rs). Opened from the host's link in any browser: the page talks to its own address.
+  var H = null, invoke = null;
+  try {
+    var q = new URLSearchParams(location.search).get("h");
+    if (q !== null) {
+      if (!window.__TAURI__ || !window.__TAURI__.core || !Link.hostOk(q)) { $("join-status").textContent = "Invalid link."; $("join").hidden = false; return; }
+      H = q; invoke = window.__TAURI__.core.invoke;
+    }
+  } catch (e) {}
+
   // Transport (matches src-tauri/src/lan.rs):
   //   POST /m/<guestId>        one message, answer 204
   //   GET  /p/<guestId>?a=<n>  long poll, answer {"n":<highest number>,"m":["...", ...]}
   var transport = (function () {
     var connId = null, base = location.origin, ack = 0, polling = false, stopped = false, chain = Promise.resolve();
     function post(path, body) {
+      if (H) return invoke("guest_post", { host: H, id: path.slice(3), data: body }).catch(function (e) { throw new Error(String(e)); });
       return fetch(base + path, { method: "POST", headers: { "Content-Type": "text/plain" }, body: body, cache: "no-store" })
         .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r; });
     }
@@ -30,17 +42,29 @@
       stopped = true; polling = false;
       handleEvent({ t:"lost", why:why });
     }
+    // One "wait for messages" call, answered the same way in the browser and in the app: { ok, status, json }.
+    function pollOnce() {
+      if (H) {
+        return invoke("guest_poll", { host: H, id: connId, ack: ack }).then(function (text) { return { ok: true, status: 200, json: JSON.parse(text) }; }, function (e) {
+          var m = /^HTTP (\d+)$/.exec(String(e));
+          return { ok: false, status: m ? Number(m[1]) : 0 };
+        });
+      }
+      return fetch(base + "/p/" + connId + "?a=" + ack, { cache: "no-store" }).then(function (r) {
+        return r.ok ? r.json().then(function (j) { return { ok: true, status: 200, json: j }; }) : { ok: false, status: r.status };
+      });
+    }
     function startPoll() {
       if (polling || stopped || !connId) return;
       polling = true;
       (function poll() {
         if (stopped || !connId) { polling = false; return; }
-        fetch(base + "/p/" + connId + "?a=" + ack, { cache: "no-store" })
+        pollOnce()
           .then(function (r) {
             if (r.status === 403) throw { fatal:"The host closed this connection." };
             if (r.status === 404) throw { fatal:"The host stopped the game." };
             if (!r.ok) throw new Error("HTTP " + r.status);
-            return r.json();
+            return r.json;
           })
           .then(function (res) {
             if (stopped) return;
@@ -164,7 +188,7 @@
       p.appendChild(h("h3", "", "Seat " + (i + 1) + (s.open ? " (open)" : "")));
       p.appendChild(h("p", "", "Name: " + s.name));
       if (s.open && !taken) {
-        var b = h("button", "small", you === i ? "This is you" : "Take this seat");
+        var b = h("button", "small act", you === i ? "This is you" : "Take this seat");
         b.type = "button";
         b.disabled = you !== -1;
         if (you === -1) {
@@ -237,6 +261,19 @@
     $("spin").onclick = function () { if (mySeat === g.turn && !g.over && !pendingQuestion && !pendingPowerUp) guest.sendAction("spin"); };
   }
 
+  // Draw the wheel once (same drawing as the host page)
+  (function buildWheel() {
+    var SL = Wheel.slices, n = SL.length, a = 360 / n, R = 96;
+    var pt = function (d, r) { var t = (d - 90) * Math.PI / 180; return [100 + r * Math.cos(t), 100 + r * Math.sin(t)].map(function (v) { return v.toFixed(2); }); };
+    var s = '<svg viewBox="0 0 200 200" aria-hidden="true">';
+    SL.forEach(function (c, i) {
+      var p1 = pt(i * a, R), p2 = pt((i + 1) * a, R), m = (i + .5) * a, t = pt(m, 58);
+      s += '<path d="M100 100L' + p1[0] + " " + p1[1] + "A" + R + " " + R + " 0 0 1 " + p2[0] + " " + p2[1] + 'Z" fill="' + c.color + '" stroke="var(--fg)" stroke-width=".6"/>' +
+        '<text x="' + t[0] + '" y="' + t[1] + '" transform="rotate(' + (m > 180 ? m + 90 : m - 90) + " " + t[0] + " " + t[1] + ')" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="' + c.ink + '">' + c.label + "</text>";
+    });
+    $("wheel").innerHTML = s + "</svg>";
+  })();
+
   function animateWheel(index) {
     var SL = Wheel.slices, n = SL.length, a = 360 / n;
     var want = ((-(index + .5) * a) % 360 + 360) % 360;
@@ -254,7 +291,7 @@
     var box = $("pu-btns");
     box.textContent = "";
     pu.options.forEach(function (opt) {
-      var e = h("button", "small", opt.name + " (" + opt.count + ")");
+      var e = h("button", "small act", opt.name + " (" + opt.count + ")");
       e.onclick = function () { guest.sendAction("arm", { p: opt.id }); };
       box.appendChild(e);
     });
@@ -311,7 +348,7 @@
     $("dlg-text").textContent = offer.fromName + " offers a draw. Accept?";
     box.textContent = "";
     ["Accept draw", "Decline"].forEach(function (btn, k) {
-      var e = h("button", "small", btn);
+      var e = h("button", "small act", btn);
       e.onclick = function () { d.close(); pendingDrawOffer = false; guest.sendAction(k === 0 ? "yes" : "no"); };
       box.appendChild(e);
     });
