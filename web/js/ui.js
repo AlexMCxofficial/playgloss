@@ -14,9 +14,11 @@
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
   window.onerror = function (msg, url, line) {
-    // Browsers hide the details of errors from scripts they did not load from this page (extensions, shields,
-    // injected helpers) and report just "Script error." at line 0. Those are not ours, so do not alarm the player.
-    if (!line && /^script error\.?$/i.test(String(msg))) return true;
+    // Only report errors from this page's own scripts. Browser extensions (crypto wallets, ad blockers, Brave's
+    // shields) inject code that fails on its own, and browsers report those with no file, or as "Script error."
+    // at line 0. They are not ours and must not alarm the player.
+    var own = typeof url === "string" && url && (url.indexOf(location.origin) === 0 || /\/js\/[\w\/.-]+\.js/.test(url)) && !/^(chrome|moz|safari|brave)-extension:/.test(url);
+    if (!own) { console.warn("Ignored error from outside the page:", msg, url, line); return true; }
     var d = $("err-box");
     if (!d) {
       d = h("div", "err-box"); d.style.cssText = "position:fixed;bottom:10px;left:10px;right:10px;background:#800;color:#fff;padding:10px;font-family:sans-serif;z-index:9999;";
