@@ -90,6 +90,7 @@ main.play{max-width:68rem;padding-top:.5rem;gap:.75rem;text-align:center}
   min-height:44px;padding:0 1.1rem;border-radius:999px;border:1px solid var(--border);
   background:var(--surface);color:var(--fg);font:inherit;font-size:1rem;cursor:pointer}
 .small[aria-pressed="true"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.small.act{background:var(--accent);color:var(--on-accent);border-color:var(--accent);box-shadow:0 0 0 2px var(--edge,transparent)}
 button:disabled{opacity:.45;cursor:not-allowed}
 .spin:not(:disabled):hover,.small:not(:disabled):hover{filter:brightness(1.15)}
 
