@@ -14,6 +14,9 @@
 
   // Global error handler so JS errors show visibly instead of silently breaking buttons
   window.onerror = function (msg, url, line) {
+    // Browsers hide the details of errors from scripts they did not load from this page (extensions, shields,
+    // injected helpers) and report just "Script error." at line 0. Those are not ours, so do not alarm the player.
+    if (!line && /^script error\.?$/i.test(String(msg))) return true;
     var d = $("err-box");
     if (!d) {
       d = h("div", "err-box"); d.style.cssText = "position:fixed;bottom:10px;left:10px;right:10px;background:#800;color:#fff;padding:10px;font-family:sans-serif;z-index:9999;";
