@@ -34,17 +34,15 @@ var Overlays = (function () {
 
   // Picks the next word of a level and shuffles its answers. The host calls this once per question, so the screen
   // that shows the question and the screen that judges it always agree.
-  // Extreme mode draws from WORDS_EXTREME (words_extreme.js, made by tools/build_words.py --extreme), which has many more
-  // words on the hard levels because they come up so often. Where that list is missing a level, the normal list is used.
-  function wordsFor(lv, extreme) {
-    var x = extreme && typeof WORDS_EXTREME !== "undefined" && WORDS_EXTREME ? WORDS_EXTREME[lv.id] : null;
-    return x && x.length ? x : WORDS[lv.id];
-  }
+  // Extreme mode draws from the Extreme list (words.js), which has many more words on the hard levels because they
+  // come up so often. Where that list is missing a level, the normal list is used.
+  // Only the picked word is read out of the pack; no list is kept in memory.
   function pick(lv, extreme) {
-    var list = wordsFor(lv, extreme), u = used[lv.id] || (used[lv.id] = []);
-    var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
-    if (!pool.length) { u.length = 0; pool = list; }
-    var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
+    var n = Words.count(lv.id, extreme), u = used[lv.id] || (used[lv.id] = []), seen = {}, pool = [], k;
+    u.forEach(function (x) { seen[x] = 1; });
+    for (k = 0; k < n; k++) if (!seen[Words.word(lv.id, extreme, k)]) pool.push(k);
+    if (!pool.length) { u.length = 0; for (k = 0; k < n; k++) pool.push(k); }
+    var w = Words.get(lv.id, extreme, pool[Math.floor(Math.random() * pool.length)]); u.push(w.word);
     var opts = shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
     return { word: w.word, opts: opts, right: opts.findIndex(function (o) { return o.ok; }) };
   }
