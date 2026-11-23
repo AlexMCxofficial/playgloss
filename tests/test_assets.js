@@ -21,15 +21,15 @@ var sw = read("web/sw.js"), files = new Function(sw.replace(/self\.addEventListe
 files.forEach(function (f) { if (f !== "./") assert(fs.existsSync(path.join(root, "web", f)), "sw.js lists a missing file: " + f); });
 console.log("ok  every file in the offline cache exists (" + files.length + " checked)");
 
-var X = new Function(read("web/js/words_extreme.js") + ";return WORDS_EXTREME")();
-var N = new Function(read("web/js/words.js") + ";return WORDS")();
-var ids = Object.keys(N), seen = {};
+var W = new Function(read("web/js/words.js") + ";return Words")();
+var ids = W.levels(), seen = {};
 ids.forEach(function (id, i) {
-  var want = N[ids[ids.length - 1 - i]].length;
-  assert.strictEqual(X[id].length, want, id + " should have " + want + " Extreme words");
-  X[id].forEach(function (w) {
+  var want = W.count(ids[ids.length - 1 - i], false);
+  assert.strictEqual(W.count(id, true), want, id + " should have " + want + " Extreme words");
+  for (var k = 0; k < want; k++) {
+    var w = W.get(id, true, k);
     assert(!seen[w.word], "word used twice: " + w.word); seen[w.word] = 1;
     assert(w.meaning && w.wrong.length === 3, "bad entry: " + w.word);
-  });
+  }
 });
 console.log("ok  Extreme word list has the flipped counts and no repeats");
