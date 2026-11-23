@@ -39,7 +39,7 @@ const MAX_IP_HITS: usize = 150; // requests from one device per 10 seconds
 const POLL_SECS: u64 = 20; // how long a "wait for messages" request is held
 
 // The only files a guest may download. They come from the app's own embedded web folder.
-const ASSETS: [&str; 19] = [
+const ASSETS: [&str; 20] = [
     "/join.html",
     "/css/style.css",
     "/js/theme.js",
@@ -57,6 +57,7 @@ const ASSETS: [&str; 19] = [
     "/js/online/link.js",
     "/js/join.js",
     "/logo.svg",
+    "/img/heart.png",
     "/icons/icon-192.png",
     "/icons/icon-512.png",
 ];
