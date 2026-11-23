@@ -1,42 +1,93 @@
 name: Build Android APK
 
 # Manual only: Actions tab > Build Android APK > Run workflow.
-# When it finishes, open the run page and download the zip under "Artifacts"
-# (PlayGloss-android). The APK is unsigned; sign it before publishing.
+# When it finishes, download the SIGNED APK from "Artifacts" (PlayGloss-android).
+# It runs on all ARM and Intel phones.
+#
+# One-time setup (Settings > Secrets and variables > Actions > New repository secret):
+#   ANDROID_KEYSTORE_BASE64    the keystore file as one line:  base64 -w0 release.jks
+#   ANDROID_KEYSTORE_PASSWORD  the keystore password
+#   ANDROID_KEY_ALIAS          the key alias inside the keystore
+#   ANDROID_KEY_PASSWORD       (optional) only if the key has a different password than the keystore
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: android
+  cancel-in-progress: true
+
+env:
+  BUILD_TOOLS: 34.0.0
+  NDK: 27.0.12077973
+
 jobs:
   build-android:
     name: Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      # Stop in the first seconds if a signing secret is missing.
+      - name: Check signing secrets
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AL: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          for v in KS PW AL; do
+            if [ -z "${!v}" ]; then
+              echo "::error::A signing secret is missing (see the setup note at the top of .github/workflows/android.yml)"
+              exit 1
+            fi
+          done
 
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
+
+      # The version must match in package.json, Cargo.toml and tauri.conf.json.
+      - name: Check version numbers
+        run: |
+          a=$(node -p "require('./package.json').version")
+          b=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          c=$(sed -n 's/^version = "\(.*\)"/\1/p' src-tauri/Cargo.toml | head -n 1)
+          echo "package.json=$a  tauri.conf.json=$b  Cargo.toml=$c"
+          if [ "$a" != "$b" ] || [ "$a" != "$c" ]; then
+            echo "::error::The three version numbers differ"
+            exit 1
+          fi
+          echo "VERSION=$a" >> "$GITHUB_ENV"
+
+      # The game's own checks. A broken build never reaches a phone.
+      - name: Run the game tests
+        run: |
+          for t in tests/*.js; do
+            echo "== $t"
+            node "$t"
+          done
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
+      # All four targets: ARM 64/32-bit and Intel 64/32-bit (the universal APK).
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
 
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           key: android
 
-      # Fix: the action's default package list contains the obsolete 'tools'
-      # package, which no longer exists in recent cmdline-tools and makes
-      # sdkmanager fail. An empty list skips it; we install what we need below.
+      # The action's default package list contains the obsolete 'tools' package, which makes sdkmanager fail.
+      # An empty list skips it; we install what we need below.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -45,15 +96,16 @@ jobs:
       - name: Install Android platform, build-tools and NDK
         run: |
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;27.0.12077973"
-          echo "NDK_HOME=$ANDROID_HOME/ndk/27.0.12077973" >> "$GITHUB_ENV"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;${BUILD_TOOLS}" "ndk;${NDK}"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${NDK}" >> "$GITHUB_ENV"
 
-      - run: npm install
+      - name: Install the Tauri tools
+        run: npm ci
 
       - name: Initialize Tauri Android project if needed
         run: |
           if [ ! -d "src-tauri/gen/android" ]; then
-            npx tauri android init
+            npx tauri android init --ci
           fi
 
       # The QR scanner in Online > Join a game needs the camera. The camera is only used after the player presses
@@ -66,40 +118,48 @@ jobs:
           fi
           grep -n "CAMERA\|hardware.camera" "$M"
 
-      - run: npx tauri android build --apk
+      # Build one universal APK for all phone types.
+      - name: Build the universal APK
+        run: npx tauri android build --apk --ci
 
-      # Signs every APK with your keystore, stored in GitHub Secrets:
-      # ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS
-      - name: Align and sign APKs
+      # zipalign first, then apksigner (changing a file after signing would break the signature).
+      - name: Align, sign and verify the APK
         shell: bash
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          BT="$ANDROID_HOME/build-tools/34.0.0"
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          set -euo pipefail
+          BT="$ANDROID_HOME/build-tools/${BUILD_TOOLS}"
+          KS="$RUNNER_TEMP/release.jks"
+          trap 'rm -f "$KS"' EXIT
+          echo "$KEYSTORE_B64" | base64 -d > "$KS"
           mkdir dist
-          find src-tauri/gen/android -path "*/outputs/apk/*" -name "*.apk" | while read -r apk; do
-            name="$(basename "$apk" .apk)"
-            name="${name%-unsigned}"
-            "$BT/zipalign" -p -f 4 "$apk" "$RUNNER_TEMP/aligned.apk"
-            "$BT/apksigner" sign \
-              --ks "$RUNNER_TEMP/release.jks" \
-              --ks-key-alias "$KEY_ALIAS" \
-              --ks-pass env:KEYSTORE_PASSWORD \
-              --key-pass env:KEYSTORE_PASSWORD \
-              --out "dist/$name-signed.apk" \
-              "$RUNNER_TEMP/aligned.apk"
-            "$BT/apksigner" verify "dist/$name-signed.apk"
-          done
-          rm -f "$RUNNER_TEMP/release.jks"
-          ls -l dist
-          test -n "$(ls -A dist)"
+          APK=$(find src-tauri/gen/android -path "*/outputs/apk/*" -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error::The build made no APK"
+            exit 1
+          fi
+          OUT="dist/PlayGloss-${VERSION}.apk"
+          "$BT/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign \
+            --ks "$KS" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KEYSTORE_PASSWORD \
+            --key-pass env:KEY_PASSWORD \
+            --out "$OUT" \
+            "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs "$OUT" | grep -i "SHA-256 digest" || true
+          "$BT/apksigner" verify "$OUT"
+          rm -f "$RUNNER_TEMP/aligned.apk" "$OUT.idsig"
+          ls -lh "$OUT"
+          sha256sum "$OUT"
 
       - uses: actions/upload-artifact@v4
         with:
           name: PlayGloss-android
-          path: dist/*
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
