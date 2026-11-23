@@ -4,7 +4,7 @@ PlayGloss collects nothing.
 
 - No analytics, cookies, ads or trackers.
 - No accounts. The game makes no network requests while you play.
-- The only thing stored is your dark/light choice, kept on your own device and never sent anywhere.
+- The only things stored are your settings, kept on your own device (in your browser's local storage) and never sent anywhere: dark/light choice, color scheme and custom color, the Default/Extreme mode, the Infinite switch, the look to go back to when you leave Extreme mode, and the Play Online switch.
 - If you install the website as a web app, your browser also keeps a copy of the game's own files so it works offline. Nothing about you is stored in it.
 - Scores, power-ups and answers exist only while the page is open. Nothing about a game is saved or sent.
 
@@ -18,6 +18,8 @@ The Play page has an **Online** option to host or join a game. Hosting never run
 - **Joining** needs no switch and opens no port. It only connects to the address in the link you give it, and only if that address is on a private network (such as 192.168.x.x or 10.x.x.x); a link to anything else is refused. In the app, a small built-in client does the connecting; on the website, the link opens the host's own join page.
 - **Scanning a QR code** uses your camera only after you press the button and only while the preview is open. The picture is read on your device by the browser's or system's own QR reader. It is never saved, recorded or sent anywhere, and the camera is switched off when you scan, cancel or leave. Your link is never sent to PlayGloss or anyone else.
 - **Paste link** reads your clipboard only when you press it, once, and keeps nothing.
+- The lobby's **Connection** box only helps guests get onto the same Wi-Fi. The Wi-Fi name and password you may type there stay on that screen (and in the optional Wi-Fi QR code drawn on it). They are never saved, never sent to guests by PlayGloss and are not part of the join link; they are gone when you stop hosting.
+- The host's mode choice (Default or Extreme, Infinite on or off) is sent to guests so everybody plays by the same rules. It contains nothing about you.
 - Game messages are encrypted with the secret in the link. The host's server and the join client only pass them along and never read them.
 - The secret part of the join link (after the `#`) never leaves your browser. It travels only by the link or QR code you share yourself.
 - Guest names are checked with the same name filter on every device. Offensive names are refused.
