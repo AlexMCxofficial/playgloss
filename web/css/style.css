@@ -174,7 +174,7 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 
 .sethead{margin:.5rem 0 .75rem}
 .panels{display:flex;flex-wrap:wrap;gap:1rem;justify-content:center;width:100%;margin-top:1rem}
-.panel{flex:1 1 16rem;max-width:24rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem;text-align:left}
+.panel{flex:1 1 16rem;min-width:0;max-width:24rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem;text-align:left}
 .panel h3{margin:0 0 .5rem}
 .field{display:block;margin:.4rem 0}
 .field span{display:block;font-size:.85rem;color:var(--muted)}
@@ -284,3 +284,29 @@ dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
   #play:not([data-tab="players"]) #order-mobile{display:none}
 }
 .page h4{margin:1rem 0 .2rem;font-size:1rem}
+
+/* ---------- 0.1.4: Extreme look, hearts (Infinite mode), mode line, Modes and Connection boxes ---------- */
+/* Extreme is dark red with a red accent (dark only, like OLED). */
+:root[data-scheme="extreme"]{--bg:#2a0505;--fg:#fff2f2;--muted:#e3b0b0;--surface:#3d0b0b;--border:#7a2323;--accent:#e01b1b;--on-accent:#fff;color-scheme:dark}
+
+/* the phone tabs belong to a running game only (play.html and join.html hide them with the hidden attribute) */
+.mtabs[hidden]{display:none!important}
+
+.modeline{margin:0;font-size:.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+
+/* hearts: the pictures come from the Minecraft Wiki (see CREDITS.md). Lost hearts are grey. */
+.hearts{display:flex;justify-content:center;align-items:center;gap:2px;margin:.2rem 0 0;min-height:27px}
+.heart{width:27px;height:27px;flex:none;image-rendering:pixelated}
+.heart.lost{filter:grayscale(1) brightness(.35);opacity:.6}
+.mchip .hearts{margin:0;min-height:18px}
+.mchip .heart{width:18px;height:18px}
+
+/* Modes (host form) and Connection (lobby) */
+.box{width:100%;max-width:34rem;margin:1rem auto 0;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem;text-align:left}
+.box h3{margin:0 0 .25rem;font-size:1.05rem}
+.box .row{justify-content:flex-start;margin-top:.6rem}
+.box .note{margin:.5rem 0 0}
+.box .field input{background:var(--bg)}
+.wifi-qr{display:block;margin:.75rem 0 0;border-radius:8px}
+.warnline{margin:.5rem 0 0;padding:.5rem .7rem;border-radius:8px;border:2px solid var(--fg);font-size:.95rem}
+.modeset{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.4rem .75rem;margin:.75rem 0 0}
