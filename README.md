@@ -12,14 +12,14 @@ An English guess-the-meaning game for one to four players sharing one screen. Sp
 
 Installers are on the [Releases page](https://github.com/AlexMCxofficial/playgloss/releases).
 
-| Platform | Hardware | Format | Status |
-|---|---|---|---|
-| Windows 10 and 11 | 64-bit | `.exe` installer | Tested |
-| Windows 10 | 32-bit | `.exe` installer | Built, not tested on a real 32-bit PC |
-| macOS | Intel and Apple Silicon | `.dmg` | Built, not tested on a real Mac, unsigned |
-| Linux (Debian 12+, Ubuntu 22.04+) | 64-bit | `.deb` or `.AppImage` | Tested on Debian |
-| Android 7.0+ | 64-bit and 32-bit ARM | `.apk` | Tested |
-| iPhone and iPad | any | web app (Safari, Add to Home Screen) | Works from the website |
+| Platform                          | Hardware                | Format                               | Status                                    |
+| --------------------------------- | ----------------------- | ------------------------------------ | ----------------------------------------- |
+| Windows 10 and 11                 | 64-bit                  | `.exe` installer                     | Tested                                    |
+| Windows 10                        | 32-bit                  | `.exe` installer                     | Built, not tested on a real 32-bit PC     |
+| macOS                             | Intel and Apple Silicon | `.dmg`                               | Built, not tested on a real Mac, unsigned |
+| Linux (Debian 12+, Ubuntu 22.04+) | 64-bit                  | `.deb` or `.AppImage`                | Tested on Debian                          |
+| Android 7.0+                      | 64-bit and 32-bit ARM   | `.apk`                               | Tested                                    |
+| iPhone and iPad                   | any                     | web app (Safari, Add to Home Screen) | Works from the website                    |
 
 Not supported: Windows 7 and 8, 32-bit Linux, Linux on ARM, Android on Intel (emulators).
 
@@ -33,22 +33,22 @@ In 1 vs 1 and 2 vs 2 a random draw from 0 to 9 decides who goes first, and the p
 - **1 vs 1:** two players, each with a card showing name, color, score and power-ups, and their own Offer draw and Resign buttons.
 - **2 vs 2:** two teams of two. A Team Scoreboard shows each team's combined score, and a leaderboard shows each player's share. A draw offer is for everyone, but resigning is only for you.
 
-| Level | Points | Time | Words |
-|---|---|---|---|
-| Very Easy | 1 | 15 s | 500 |
-| Easy | 2 | 15 s | 300 |
-| Normal | 3 | 20 s | 200 |
-| Hard | 4 | 20 s | 150 |
-| Very Hard | 5 | 25 s | 100 |
-| Extremely Hard | 8 | 25 s | 75 |
-| Insanely Hard | 10 | 30 s | 50 |
-| Impossible (Almost) | 15 | 30 s | 25 |
+| Level               | Points | Time | Words |
+| ------------------- | ------ | ---- | ----- |
+| Very Easy           | 1      | 15 s | 500   |
+| Easy                | 2      | 15 s | 300   |
+| Normal              | 3      | 20 s | 200   |
+| Hard                | 4      | 20 s | 150   |
+| Very Hard           | 5      | 25 s | 100   |
+| Extremely Hard      | 8      | 25 s | 75    |
+| Insanely Hard       | 10     | 30 s | 50    |
+| Impossible (Almost) | 15     | 30 s | 25    |
 
 - **Power-ups:** 2x doubles your points if correct, 3x triples them, Shield gives half the points if you are wrong, and Free 5 gives 5 points straight away. You choose 2x, 3x or Shield after you see the level and before you see the word. One power-up per question, and it is used up either way.
 - **The wheel looks evenly divided, but the odds are not.** Easier levels come up far more often.
 - **Names and colors:** pick any color (16 presets, a hex code, RGB sliders or a color wheel; the two sides cannot have the same or a look-alike color) and a name of up to 16 characters, with bold, italic and underline if you like. Offensive names are refused with a red message.
 - **Settings:** the gear at the top left opens Settings, where you can choose Light or Dark and a color scheme: PlayGloss, OLED, Yaru (Ubuntu orange), Extreme (dark red) or Custom. Under Modes, choose Default or Extreme, and switch Infinite on or off. Mode and color are separate: Extreme mode picks the Extreme color automatically, but you can still change either one. Settings stay on your device.
-- **Extreme mode:** level odds are flipped (Impossible comes up as often as Very Easy does in Default). Points, time per level and the Easter egg odds do not change. Its larger WordNet word list ships in `web/js/words_extreme.js`; regenerate it with the commands below if you ever want a different set.
+- **Extreme mode:** level odds are flipped (Impossible comes up as often as Very Easy does in Default). Points, time per level and the Easter egg odds do not change. Its larger WordNet word list is packed into `web/js/words.js` together with the normal one; regenerate it with the commands below if you ever want a different set.
 - **Infinite mode:** no 100-point goal. Each player gets three Minecraft-style hearts; a wrong answer or time up costs a heart. See Documentation for how elimination works in solo and team games.
 - **Online modes:** the host chooses Default or Extreme and Infinite in the Host a game tab; joining players see the same rules. The lobby's Connection section helps identify open Wi-Fi, password Wi-Fi or a login-page network. Wi-Fi names/passwords are not stored or sent by PlayGloss.
 - **Winning:** when someone reaches 100, the round finishes so everyone gets the same number of turns. The higher score wins, and a tie goes to a sudden-death spin.
@@ -118,7 +118,7 @@ py tools/build_words.py --freq freq.txt
 py tools/build_words.py --freq freq.txt --extreme
 ```
 
-This makes `web/js/words.js` and `web/js/words_extreme.js`, plus review sheets in `tools/`. Check both review sheets before releasing. If PowerShell blocks the activate line, open a fresh PowerShell and run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first, then activate the environment.
+This makes `tools/data/words.json` and `tools/data/words_extreme.json`, plus review sheets in `tools/`. Then run `python3 tools/pack_words.py` to pack both into `web/js/words.js`. Check both review sheets before releasing. If PowerShell blocks the activate line, open a fresh PowerShell and run `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` first, then activate the environment.
 
 For Mac/Linux use `python3 -m venv .venv`, `source .venv/bin/activate`, and replace `py` with `python3`.
 
@@ -129,7 +129,7 @@ For Mac/Linux use `python3 -m venv .venv`, `source .venv/bin/activate`, and repl
 PlayGloss was built by AlexMC together with an AI assistant, Claude, made by Anthropic. I am telling you plainly so you can judge it for yourself, and so any store, distribution or project with a policy about AI-assisted code can decide what to do.
 
 - **AlexMC** decided what to build: the rules, the odds, the game modes, the look, the platforms and the stores. I also tested it on real devices, ran the builds and made the releases.
-- **Claude** wrote most of the code and text from those instructions: the game logic and interface, the offline web app files, the Tauri setup, the word-list script, the GitHub Actions workflows, the documentation and the store text.
+- **Claude** wrote most of the code from those instructions: the game logic and interface, the offline web app files, the Tauri setup, the word-list script, the GitHub Actions workflows, the documentation and the store text.
 - **Not AI-generated:** the word meanings come from Princeton WordNet (the script only selects and arranges them), and the app icon and the Easter egg screen design were supplied by AlexMC.
 
 Everything is open source under the MIT License, so you can read all of it. If you contribute, please say so in your pull request if you used an AI tool.
