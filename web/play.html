@@ -44,8 +44,11 @@
 <section id="lobby" class="setup" aria-label="Lobby" hidden>
 <h2 class="sethead">Lobby</h2>
 <p class="note" id="online-indicator" hidden>🟢 Online — hosting on your network</p>
+<p class="note" id="lobby-mode"></p>
 <div id="lobby-seats" class="panels"></div>
 <div class="row"><button id="lobby-start" class="spin" type="button" hidden>Start game</button></div>
+<!-- Connection: which kind of Wi-Fi everybody is on (filled in by ui.js while hosting) -->
+<section id="lobby-conn" class="box" aria-labelledby="conn-title"></section>
 <div class="setrow">
 <span class="setlabel">Share this link</span>
 <div class="row"><code id="host-link" class="note" style="word-break: break-all;"></code></div>
@@ -64,6 +67,7 @@
 <div class="arena">
 <aside class="side"><div id="lb-0" class="lb"></div><div id="cards-0" class="cards"></div></aside>
 <div class="center">
+<p id="modeline" class="modeline" hidden></p>
 <p class="turn" id="turn" aria-live="polite"></p>
 <div class="stage"><div class="pointer" aria-hidden="true"></div><div id="wheel"></div></div>
 <p id="msg" role="status" aria-live="polite"></p>
@@ -79,7 +83,7 @@
 </div>
 
 <!-- phone layout: tabs at the bottom -->
-<nav id="mtabs" class="mtabs" aria-label="Game sections">
+<nav id="mtabs" class="mtabs" aria-label="Game sections" hidden>
 <button type="button" data-tab="game">Game</button>
 <button type="button" data-tab="players">Players</button>
 <button type="button" data-tab="board">Leaderboard</button>
@@ -146,9 +150,11 @@
 </footer>
 <script src="js/vendor/nacl-fast.min.js"></script>
 <script src="js/words.js"></script>
+<script src="js/words_extreme.js"></script>
 <script src="js/core/wheel.js"></script>
 <script src="js/core/game.js"></script>
 <script src="js/core/filter.js"></script>
+<script src="js/modes.js"></script>
 <script src="js/color.js"></script>
 <script src="js/view.js"></script>
 <script src="js/overlays.js"></script>

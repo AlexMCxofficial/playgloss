@@ -100,6 +100,30 @@
 <li>If the scores are tied, each team spins once more in sudden death (in 2 vs 2, the first remaining player of each team spins). The higher result wins, where a level counts as its points, Free 5 counts as 5 and other power-ups count as 0. A tie spins again.</li>
 </ul>
 
+<h3>Extreme mode</h3>
+<p>Extreme is a mode you turn on yourself in Settings, under Modes. It flips how often the levels come up: Impossible comes up as often as Very Easy does in Default, Insanely Hard as often as Easy, and so on. Only the odds change. Points and time per level stay the same (Impossible still gives 15 points and 30 seconds), the power-ups keep their chances, and the Easter egg is exactly as rare as before.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Level</th><th>Points</th><th>Time</th><th>Words</th><th>Chance</th></tr></thead>
+<tbody>
+<tr><td>Very Easy</td><td>1</td><td>15 s</td><td>25</td><td>1.70%</td></tr>
+<tr><td>Easy</td><td>2</td><td>15 s</td><td>50</td><td>3.41%</td></tr>
+<tr><td>Normal</td><td>3</td><td>20 s</td><td>75</td><td>5.11%</td></tr>
+<tr><td>Hard</td><td>4</td><td>20 s</td><td>100</td><td>6.81%</td></tr>
+<tr><td>Very Hard</td><td>5</td><td>25 s</td><td>150</td><td>10.22%</td></tr>
+<tr><td>Extremely Hard</td><td>8</td><td>25 s</td><td>200</td><td>13.63%</td></tr>
+<tr><td>Insanely Hard</td><td>10</td><td>30 s</td><td>300</td><td>20.44%</td></tr>
+<tr><td>Impossible (Almost)</td><td>15</td><td>30 s</td><td>500</td><td>34.07%</td></tr>
+</tbody></table></div>
+<p>Because the hard levels come up so often, Extreme has its own, larger word list (words_extreme.js), made from Princeton WordNet with the same filters as the normal list. If that list has not been made yet, Extreme uses the normal words.</p>
+<p>Choosing Extreme in Settings also switches the color to Extreme (dark red with a red accent). Choosing Default again puts your old look back, unless you changed it yourself. You can still use the Extreme color in Default mode, and the other way round.</p>
+
+<h3>Infinite mode</h3>
+<p>Infinite is a switch in Settings, under Modes, and it works with Default and Extreme. There is no 100 points goal. Every player has 3 hearts, and a wrong answer or running out of time costs one heart (a Shield still gives its points, but the heart is lost). A player with no hearts left is out and is skipped, like after resigning.</p>
+<ul>
+<li>Solo: the game ends when your hearts are gone, and it shows your points and turns.</li>
+<li>1 vs 1 and 2 vs 2: when everyone on one side is out, the other side plays on. It wins as soon as it has a higher score than the side that is out. If it runs out of hearts first, the higher score wins, and the same score is a draw. There are no rounds and no sudden death. Offer draw is off once the other side is out, but Resign still works.</li>
+</ul>
+
 <h3>Turn order</h3>
 <p>The game decides who plays first with a random draw before every 1 vs 1 and 2 vs 2 game. The result is final and cannot be changed. It is shown in a Turn order list below the Spin button (on a phone, in the Players tab), and the player whose turn it is is marked. Solo has no list.</p>
 <h4>1 vs 1</h4>
@@ -135,10 +159,11 @@
 <p>The gear at the top left opens Settings. Under General you can choose:</p>
 <ul>
 <li><strong>Theme</strong>: Light or Dark. The moon and sun button at the top right does the same thing.</li>
-<li><strong>Color</strong>: PlayGloss (the default look), OLED (pure black for dark screens), Yaru (Ubuntu orange with warm grays) or Custom.</li>
+<li><strong>Color</strong>: PlayGloss (the default look), OLED (pure black for dark screens), Yaru (Ubuntu orange with warm grays), Extreme (dark red with a red accent) or Custom.</li>
 <li><strong>Custom</strong> uses the same color picker as the team colors, but it only changes the accent color used for buttons and highlights. Text on the accent color turns black or white automatically so it stays readable.</li>
 </ul>
-<p>OLED only exists in the dark theme, so choosing OLED switches to Dark, and choosing Light switches OLED off. Your settings stay on your device after you close the app. They are never sent anywhere, so nobody else can read them.</p>
+<p>Under <strong>Modes</strong> you can choose Default or Extreme, and switch Infinite on or off. See Extreme mode and Infinite mode above. Both are off by default.</p>
+<p>OLED and Extreme only exist in the dark theme, so choosing one switches to Dark, and choosing Light switches it off. Your settings stay on your device after you close the app. They are never sent anywhere, so nobody else can read them.</p>
 
 <h2>Download and install</h2>
 <p>You can always play in your browser on the Play page. Apps for offline play are published on the <a href="https://github.com/AlexMCxofficial/playgloss/releases/latest">Releases page</a> as they become available. They contain the whole game and need no internet connection.</p>
@@ -188,7 +213,8 @@
 <h3>How to host (app only)</h3>
 <ol>
 <li>Open Settings and switch <strong>Play Online</strong> on. This only unlocks hosting; nothing listens on the network yet.</li>
-<li>Open the Play page, choose <strong>Online</strong>, then <strong>Host a game</strong>, pick 1 vs 1 or 2 vs 2 and set the names. Press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
+<li>Open the Play page, choose <strong>Online</strong>, then <strong>Host a game</strong>, pick 1 vs 1 or 2 vs 2, choose the <strong>Modes</strong> (Default or Extreme, and Infinite on or off) and set the names. The mode you pick here is the one this game uses, whatever Settings says. Press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
+<li>In the lobby, the <strong>Connection</strong> box asks what kind of Wi-Fi you are on: <em>No password</em>, <em>Password</em> (a normal Wi-Fi) or <em>Login page</em> (school, hotel or cafe Wi-Fi). For the first two you can type the Wi-Fi name (and password) to show a Wi-Fi QR code that guests scan with their camera to join the Wi-Fi. The name and password stay on your screen: they are not saved, not part of the join link and not sent to guests by PlayGloss. Login page networks often stop devices from talking to each other, so the box suggests logging in everywhere or using your phone's hotspot instead.</li>
 <li>Share the link shown on screen, or let guests scan the QR code. The secret part of the link (after the #) never leaves the devices that have the link.</li>
 <li>Each guest who asks to join appears in your lobby. You choose which seats guests can take ("Open for guest") and which you keep ("This device"), and you can remove anyone at any time.</li>
 <li>Press <strong>Start game</strong> when everyone is seated. Guests see the same game screen as you and spin, answer and draw on their turns.</li>
@@ -218,7 +244,7 @@
 </ul>
 
 <h2>License and credits</h2>
-<p>PlayGloss is free software under the MIT License. Word meanings come from Princeton WordNet, which has its own license. See the <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/CREDITS.md">credits</a> for everything we use.</p>
+<p>PlayGloss is free software under the MIT License. Word meanings come from Princeton WordNet, which has its own license. The heart pictures in Infinite mode come from the <a href="https://minecraft.wiki/">Minecraft Wiki</a>. Minecraft is a trademark of Mojang AB, and PlayGloss is not affiliated with Mojang or Microsoft. See the <a href="https://github.com/AlexMCxofficial/playgloss/blob/main/CREDITS.md">credits</a> for everything we use.</p>
 
 <h2>Problems and ideas</h2>
 <p>Found a wrong meaning or a bug? Open an issue on the <a href="https://github.com/AlexMCxofficial/playgloss/issues">GitHub repository</a>.</p>

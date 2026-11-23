@@ -58,6 +58,8 @@ var Host = (function () {
         onAction: function (seat, a) { me.o.ui.onAction(seat, a); },
         rnd: me.o.rnd || function () { return nacl.randomBytes(12); }
       });
+      // The game's mode (Extreme, Infinite) goes to guests with every lobby message
+      if (me.o.cfg.run) me.session.setRules(me.o.cfg.run);
       // Set up seats from UI config
       me.session.setSeats(me.o.cfg.seats);
       // Listen for relay messages

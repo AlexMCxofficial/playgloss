@@ -5,6 +5,10 @@
 //   levels  : 500 / 300 / 200 / 150 / 100 / 75 / 50 / 25
 //   specials: 2x 15, 3x 10, Shield 37.5, Free 5, Easter egg 0.01
 // Fixed order 2x > 3x > Free is intentional.
+//
+// Extreme mode (0.1.4) FLIPS the eight level weights: the hardest level gets the weight of the easiest one and so on
+// (Impossible 500, Insanely Hard 300, ... Very Easy 25). Points, seconds and the specials (2x, 3x, Shield, Free 5,
+// Easter egg) do not change, so the total and the Easter egg odds stay exactly the same.
 var Wheel = (function () {
   // id, name, colour, text colour, points, seconds, weight
   var L = [
@@ -24,11 +28,16 @@ var Wheel = (function () {
   });
   var slices = L.concat(S);
   var total = slices.reduce(function (t, s) { return t + s.weight; }, 0);
-  function pick() {
+  // The weight of a slice in the given mode. Only the eight levels flip; the specials never change.
+  function weight(s, extreme) {
+    var i = L.indexOf(s);
+    return extreme && i >= 0 ? L[L.length - 1 - i].weight : s.weight;
+  }
+  function pick(extreme) {
     var r = Math.random() * total;
-    for (var i = 0; i < slices.length; i++) { r -= slices[i].weight; if (r < 0) return slices[i]; }
+    for (var i = 0; i < slices.length; i++) { r -= weight(slices[i], extreme); if (r < 0) return slices[i]; }
     return slices[0];
   }
-  function percent(s) { return s.weight / total * 100; }
-  return { slices: slices, total: total, pick: pick, percent: percent };
+  function percent(s, extreme) { return weight(s, extreme) / total * 100; }
+  return { slices: slices, total: total, pick: pick, percent: percent, weight: weight };
 })();

@@ -10,7 +10,7 @@
 
   // Online play state
   var online = false, oTab = "join", stopScan = null; // the fourth option, "Online": which view is open
-  var host = null, hosting = false, stopping = false, hostCfg = null, qrModule = null;
+  var host = null, hosting = false, stopping = false, hostCfg = null, qrModule = null, conn = null; // conn: the Connection box (Wi-Fi type, name and password), memory only
   // What the host is waiting for right now (a guest's answer, a power-up choice, an Easter egg click or a draw reply),
   // and what guests are shown. Both are cleared by resetFlow() whenever a game starts or ends.
   var S = { pu:null, q:null, egg:null, drawOffer:null }, pend = null, drawP = null, offering = false, spinN = 0, qN = 0, timers = [];
@@ -49,8 +49,13 @@
   function defaults() {
     return { mode:"1v1", teams:[
       { name:"Red", fmt:"", color:"#e03131", players:["Player 1", "Player 2"], pfmt:["", ""] },
-      { name:"Blue", fmt:"", color:"#2f80ed", players:["Player 3", "Player 4"], pfmt:["", ""] }] };
+      { name:"Blue", fmt:"", color:"#2f80ed", players:["Player 3", "Player 4"], pfmt:["", ""] }],
+      run:null }; // run: the mode picked in the Online host form ({ extreme, inf }); null means "as in Settings"
   }
+  // The mode a game is played in. Local games always use Settings. The Online host form can pick its own.
+  function settingsRun() { var m = window.PGMode ? PGMode.get() : null; return { extreme:!!(m && m.extreme), inf:!!(m && m.infinite) }; }
+  function runOf() { return cfg.run ? { extreme:!!cfg.run.extreme, inf:!!cfg.run.inf } : settingsRun(); }
+  var runText = function (r) { return (r.extreme ? "Extreme" : "Default") + (r.inf ? ", Infinite" : ""); };
   function okName(v, dflt) { v = clean(v); return v && !Filter.bad(v) ? v : dflt; }
   function apart(c) {
     if (CP.close(c.teams[0].color, c.teams[1].color)) c.teams[1].color = CP.close(c.teams[0].color, "#2f80ed") ? "#e03131" : "#2f80ed";
@@ -59,6 +64,7 @@
     var d = defaults();
     if (!c || !MODES.some(function (m) { return m[0] === c.mode; }) || !c.teams || c.teams.length !== 2) return d;
     d.mode = c.mode;
+    if (c.run && typeof c.run === "object") d.run = { extreme:!!c.run.extreme, inf:!!c.run.inf };
     d.teams.forEach(function (t, i) {
       var s = c.teams[i] || {};
       t.name = okName(s.name, t.name); t.fmt = fixFmt(s.fmt); t.color = CP.norm(s.color) || t.color;
@@ -116,6 +122,7 @@
     g = null; sd = null; busy = false; clearInterval(tm);
     if (host) { host.stop(); host = null; hosting = false; }
     $("game").hidden = true; $("lobby").hidden = true; $("setup").hidden = false;
+    $("mtabs").hidden = true; $("online-indicator").hidden = true; conn = null; $("lobby-conn").textContent = ""; // the Wi-Fi password is gone with the lobby
     drawSetup(); save();
   }
 
@@ -139,8 +146,17 @@
     box.appendChild(modes);
     $("start").parentNode.hidden = online; // "Start game" is for games on this device
     if (online) return drawOnline(box);
+    box.appendChild(modeNote());
     for (var ti = 0; ti < (solo ? 1 : 2); ti++) panels.appendChild(panel(ti));
     box.appendChild(panels);
+  }
+  // Which mode a game on this device will use, with a way to change it.
+  function modeNote() {
+    var p = h("p", "modeset"), a = h("a", "", "Settings");
+    a.href = "settings.html";
+    p.appendChild(h("span", "note", "Mode: " + runText(settingsRun()) + ". Change it in "));
+    p.appendChild(a); p.appendChild(h("span", "note", "."));
+    return p;
   }
 
   /* ---------- the "Online" option: host a game, or join one ---------- */
@@ -171,12 +187,40 @@
       sides.appendChild(b);
     });
     box.appendChild(sides);
+    box.appendChild(modesBox());
     for (var ti = 0; ti < 2; ti++) panels.appendChild(panel(ti));
     box.appendChild(panels);
     var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
     hostBtn.onclick = startHosting;
     box.appendChild(h("div", "row")).appendChild(hostBtn);
     box.appendChild(h("p", "note", "Players on the same Wi-Fi join with your link or QR code. You approve every guest. Nothing goes over the internet."));
+  }
+
+  // "Modes" in the Host a game tab: Default or Extreme, and the Infinite switch. Guests are told the choice in the lobby.
+  function modesBox() {
+    var b = h("section", "box"), r = runOf(), row = h("div", "row"), set = h("div", "setrow"), onoff = h("div", "row");
+    b.setAttribute("aria-labelledby", "modes-title");
+    var t = h("h3", "", "Modes"); t.id = "modes-title"; b.appendChild(t);
+    row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", "modes-title");
+    [["default", "Default"], ["extreme", "Extreme"]].forEach(function (m) {
+      var x = h("button", "small", m[1]); x.type = "button";
+      x.setAttribute("aria-pressed", r.extreme === (m[0] === "extreme"));
+      x.onclick = function () { cfg.run = { extreme:m[0] === "extreme", inf:runOf().inf }; drawSetup(); save(); };
+      row.appendChild(x);
+    });
+    b.appendChild(row);
+    var lab = h("span", "setlabel", "Infinite"); lab.id = "inf-label";
+    onoff.setAttribute("role", "group"); onoff.setAttribute("aria-labelledby", "inf-label");
+    [[false, "Off"], [true, "On"]].forEach(function (m) {
+      var x = h("button", "small", m[1]); x.type = "button";
+      x.setAttribute("aria-pressed", r.inf === m[0]);
+      x.onclick = function () { cfg.run = { extreme:runOf().extreme, inf:m[0] }; drawSetup(); save(); };
+      onoff.appendChild(x);
+    });
+    set.appendChild(lab); set.appendChild(onoff); b.appendChild(set);
+    b.appendChild(h("p", "note", "Extreme flips how often the levels come up, so Impossible comes as often as Very Easy does in Default. Points and time per level stay the same."));
+    b.appendChild(h("p", "note", "Infinite: no 100 points goal. Everyone has 3 hearts and loses one for each wrong answer or time up. Hosting uses the choice you make here, not the one in Settings."));
+    return b;
   }
 
   function drawJoin(box) {
@@ -290,6 +334,8 @@
   }
   function warn() { var d = $("warn"); if (!d.open) d.showModal(); }
 
+  var startNote = function (game) { return game.inf ? "Infinite: everyone has 3 hearts. A wrong answer or time up costs one heart." : ""; };
+
   /* ---------- start local game (non-hosting) ---------- */
   function start() {
     var solo = cfg.mode === "solo", two = cfg.mode === "2v2", teams = [], bad = false, D = defaults();
@@ -302,8 +348,9 @@
     if (bad) return warn();
     var go = function (order) {
       resetFlow();
-      g = Game.create({ mode:cfg.mode, teams:teams }, order);
-      sd = null; used = {}; busy = false; tab = "game"; say("");
+      var run = settingsRun();
+      g = Game.create({ mode:cfg.mode, teams:teams, extreme:run.extreme, infinite:run.inf }, order);
+      sd = null; used = {}; busy = false; tab = "game"; say(startNote(g));
       $("setup").hidden = true; $("game").hidden = false; render();
     };
     if (solo) return go(null);
@@ -326,7 +373,8 @@
     else if (cfg.mode === "1v1") cfg.teams.forEach(function (t) { seats.push({ name: t.name, open: false }); });
     else cfg.teams.forEach(function (t) { t.players.forEach(function (n) { seats.push({ name: n, open: false }); }); });
     // For 1v1 and 2v2, mark seats as "open for guest" if user wants (we'll add UI for this in lobby)
-    hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams };
+    hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams, run: runOf() };
+    conn = { type:"password", ssid:"", pass:"", show:false };
 
     // Load the QR module dynamically; the lobby waits for it so the code is drawn on the first try.
     var qrReady = qrModule ? Promise.resolve() : import("./online/lean-qr.js")
@@ -365,8 +413,8 @@
   // Draws the QR code with whole-pixel modules, dark on white and a 4-module quiet zone, whatever the theme.
   // (lean-qr's own toCanvas draws 1 pixel per module on a transparent background, which scanners cannot read
   // on a dark page.)
-  function drawQR(link) {
-    var canvas = $("qr-canvas");
+  function drawQR(link, canvas, size) {
+    canvas = canvas || $("qr-canvas"); size = size || 256;
     if (!canvas) return;
     var ctx = canvas.getContext("2d");
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -375,7 +423,7 @@
       var qr = qrModule.generate(link, { minCorrectionLevel: qrModule.correction.M });
       var quiet = 4, mods = qr.size + quiet * 2, scale = Math.max(4, Math.floor(512 / mods)), px = mods * scale;
       canvas.width = px; canvas.height = px;
-      canvas.style.width = "256px"; canvas.style.height = "256px";
+      canvas.style.width = size + "px"; canvas.style.height = size + "px";
       canvas.style.maxWidth = "100%"; canvas.style.imageRendering = "pixelated";
       ctx.imageSmoothingEnabled = false;
       ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, px, px);
@@ -390,9 +438,80 @@
     }
   }
 
+
+  /* ---------- Connection: which kind of Wi-Fi everybody is on ---------- */
+  // Shown in the lobby once hosting has started. It helps guests get onto the same network as the host. Nothing here
+  // is sent to guests or saved: the Wi-Fi name and password only live in this box and in the QR code on this screen.
+  var CONN = [
+    ["open", "No password", "An open network. Guests connect to the Wi-Fi without a password, then open your link or scan the join QR code. Open networks are not private, so only use one you trust."],
+    ["password", "Password", "A normal Wi-Fi with a password (WPA2 or WPA3), like most homes. Guests join the Wi-Fi with the password first, then open your link. You can show a Wi-Fi QR code below so they can connect with their camera."],
+    ["portal", "Login page", "A network that shows a login or accept page in the browser, such as school, hotel or cafe Wi-Fi."]
+  ];
+  // The text a Wi-Fi QR code carries (the standard WIFI: format that phone cameras understand).
+  function wifiText(type, ssid, pass) {
+    var esc = function (v) { return String(v).replace(/([\\;,:"])/g, "\\$1"); };
+    if (!ssid || (type === "password" && !pass)) return "";
+    return "WIFI:T:" + (type === "open" ? "nopass" : "WPA") + ";S:" + esc(ssid) + ";" + (type === "open" ? "" : "P:" + esc(pass) + ";") + ";";
+  }
+  function drawConn() {
+    var box = $("lobby-conn");
+    if (!box || !conn) return;
+    box.textContent = "";
+    var t = h("h3", "", "Connection"); t.id = "conn-title"; box.appendChild(t);
+    box.appendChild(h("p", "note", "Pick the kind of Wi-Fi you are on. Guests must be on the same network as you."));
+    var row = h("div", "row"), info = CONN.filter(function (c) { return c[0] === conn.type; })[0];
+    row.setAttribute("role", "group"); row.setAttribute("aria-label", "Wi-Fi type");
+    CONN.forEach(function (c) {
+      var b = h("button", "small", c[1]); b.type = "button";
+      b.setAttribute("aria-pressed", conn.type === c[0]);
+      b.onclick = function () { conn.type = c[0]; drawConn(); };
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+    box.appendChild(h("p", "note", info[2]));
+
+    if (conn.type === "portal") {
+      box.appendChild(h("p", "warnline", "These networks often stop devices from talking to each other, so guests may not reach your game even after they log in."));
+      var ol = h("ol", "note");
+      ["Log in on the network's page on every device, this one too.",
+       "Share the link as usual and check that a guest can connect.",
+       "If it does not work, switch on your phone's hotspot (Wi-Fi sharing), connect everybody to it, then press Stop hosting and host again."].forEach(function (x) { ol.appendChild(h("li", "", x)); });
+      box.appendChild(ol);
+      return;
+    }
+
+    // Open or password: an optional Wi-Fi QR code
+    var qr = h("canvas", "wifi-qr"), hint = h("p", "note"), wrap = h("div", "field");
+    var field = function (label, key, max, type) {
+      var w = h("div", "field"), i = h("input");
+      i.type = type || "text"; i.maxLength = max; i.value = conn[key]; i.autocomplete = "off"; i.spellcheck = false; i.setAttribute("aria-label", label);
+      i.oninput = function () { conn[key] = i.value; paintWifi(); };
+      w.appendChild(h("span", "flabel", label)); w.appendChild(i);
+      return [w, i];
+    };
+    box.appendChild(field("Wi-Fi name (optional)", "ssid", 32)[0]);
+    if (conn.type === "password") {
+      var pw = field("Wi-Fi password (optional)", "pass", 63, conn.show ? "text" : "password"), show = h("button", "small", conn.show ? "Hide password" : "Show password");
+      show.type = "button"; show.setAttribute("aria-pressed", conn.show);
+      show.onclick = function () { conn.show = !conn.show; drawConn(); };
+      box.appendChild(pw[0]); box.appendChild(h("div", "row")).appendChild(show);
+    }
+    qr.setAttribute("aria-label", "Wi-Fi QR code"); qr.hidden = true;
+    box.appendChild(hint); box.appendChild(qr);
+    box.appendChild(h("p", "note", "The Wi-Fi name and password stay on this screen. They are not saved, not sent to guests by PlayGloss and not part of the join link. Anyone who scans the Wi-Fi QR code gets the password, so do not share a screenshot."));
+    function paintWifi() {
+      var text = wifiText(conn.type, conn.ssid.trim(), conn.pass);
+      if (!text) { qr.hidden = true; hint.textContent = conn.type === "password" ? "Type the Wi-Fi name and password to show a QR code that guests can scan to join the Wi-Fi." : "Type the Wi-Fi name to show a QR code that guests can scan to join the Wi-Fi."; return; }
+      hint.textContent = "Guests can scan this with their phone camera to join the Wi-Fi. Then they scan the join QR code below.";
+      drawQR(text, qr, 200);
+    }
+    paintWifi();
+  }
+
   function showLobby(info) {
-    $("setup").hidden = true; $("game").hidden = true; $("lobby").hidden = false;
+    $("setup").hidden = true; $("game").hidden = true; $("lobby").hidden = false; $("mtabs").hidden = true;
     $("online-indicator").hidden = false;
+    drawConn();
     renderLobby(host.session.seats, "lobby");
     if (info.ips.length) drawQR(host.linkFor(info.ips[0]));
     $("host-link").textContent = info.ips.length ? host.linkFor(info.ips[0]) : "Waiting for IP...";
@@ -402,6 +521,7 @@
   function renderLobby(seats, phase) {
     if (!host || !host.session || !hostCfg) return;
     var box = $("lobby-seats"), sess = host.session;
+    $("lobby-mode").textContent = "Mode: " + runText(hostCfg.run);
     box.textContent = "";
     seats.forEach(function (s, i) {
       // Session seats have no "taken" flag (that only exists in the message sent to guests), so ask the session.
@@ -526,8 +646,8 @@
     var solo = hostCfg.mode === "solo", two = hostCfg.mode === "2v2";
     var go = function (order) {
       resetFlow();
-      g = Game.create({ mode: hostCfg.mode, teams: teams }, order);
-      sd = null; used = {}; busy = false; tab = "game"; say("");
+      g = Game.create({ mode: hostCfg.mode, teams: teams, extreme: hostCfg.run.extreme, infinite: hostCfg.run.inf }, order);
+      sd = null; used = {}; busy = false; tab = "game"; say(startNote(g));
       host.startGame();
       $("lobby").hidden = true; $("game").hidden = false;
       render();
@@ -619,6 +739,7 @@
 
   /* ---------- drawing the game (uses View.paint) ---------- */
   function render() {
+    $("mtabs").hidden = false; // render() only runs while the game is on screen
     var acts = function (pi) { return idle() && !g.over && !sd && g.turn === pi && !g.players[pi].out && !remote(pi); };
     var shownTab = View.paint(g, Game, { tab: tab, sd: !!sd, acts: acts });
     tab = shownTab;
@@ -635,7 +756,7 @@
   function spin() {
     if (!idle() || g.over) return;
     busy = true; say(""); render();
-    var res = Wheel.pick(), i = SL.indexOf(res), a = 360 / SL.length;
+    var res = Wheel.pick(g.extreme), i = SL.indexOf(res), a = 360 / SL.length;
     var want = ((-(i + .5) * a) % 360 + 360) % 360, cur = ((rot % 360) + 360) % 360;
     rot += ((want - cur + 360) % 360) + 1800;
     var rm = matchMedia("(prefers-reduced-motion: reduce)").matches, w = $("wheel");
@@ -686,8 +807,11 @@
   // The question. The host picks the word once. If a guest plays this turn, only that guest sees the words and
   // answers; the host's screen shows a status line and judges the answer. Otherwise the host's screen asks.
   function askQuestion(lv) {
-    var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv);
-    var announce = function (ok, k, pts) { say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "."); };
+    var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv, g.extreme);
+    var announce = function (ok, k, pts) {
+      say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "." +
+        (g.inf && !ok ? " " + p.name + " loses a heart (" + p.hearts + " left)." : ""));
+    };
     say(p.name + " is answering...");
     if (!remote(seat)) {
       broadcastSnap();
@@ -717,7 +841,12 @@
     render();
   }
 
-  function finish() { var r = Game.endTurn(g); busy = false; after(r); }
+  function finish() {
+    var p = g.players[g.turn], dying = g.inf && p.hearts <= 0 && !p.out; // Infinite: that was the last heart
+    var r = Game.endTurn(g); busy = false;
+    if (dying) say(p.name + " is out of hearts.");
+    after(r);
+  }
   function after(r) { if (r === "sudden") startSudden(); render(); }
   function turnOf(t) { g.turn = Game.rep(g, t); g.pos = g.order.indexOf(g.turn); }
   function startSudden() {
@@ -754,6 +883,7 @@
   // guest's own screen. Nothing else can be pressed while it is open.
   function doDraw() {
     var p = g.players[g.turn], o = g.teams[other(p.team)], target = Game.rep(g, other(p.team)), done = false, t = null;
+    if (target < 0) return; // Infinite: the other side is out of hearts, nobody is left to answer
     var reply = function (accept) {
       if (done) return; done = true; clearTimeout(t);
       drawP = null; S.drawOffer = null; offering = false;
@@ -780,7 +910,7 @@
         // Return to lobby with same guests
         resetFlow();
         host.session.setPhase("lobby");
-        $("game").hidden = true; $("lobby").hidden = false;
+        $("game").hidden = true; $("lobby").hidden = false; $("mtabs").hidden = true;
         renderLobby(host.session.seats, "lobby");
       } else {
         showSetup();

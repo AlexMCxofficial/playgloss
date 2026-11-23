@@ -34,8 +34,14 @@ var Overlays = (function () {
 
   // Picks the next word of a level and shuffles its answers. The host calls this once per question, so the screen
   // that shows the question and the screen that judges it always agree.
-  function pick(lv) {
-    var list = WORDS[lv.id], u = used[lv.id] || (used[lv.id] = []);
+  // Extreme mode draws from WORDS_EXTREME (words_extreme.js, made by tools/build_words.py --extreme), which has many more
+  // words on the hard levels because they come up so often. Where that list is missing a level, the normal list is used.
+  function wordsFor(lv, extreme) {
+    var x = extreme && typeof WORDS_EXTREME !== "undefined" && WORDS_EXTREME ? WORDS_EXTREME[lv.id] : null;
+    return x && x.length ? x : WORDS[lv.id];
+  }
+  function pick(lv, extreme) {
+    var list = wordsFor(lv, extreme), u = used[lv.id] || (used[lv.id] = []);
     var pool = list.filter(function (w) { return u.indexOf(w.word) < 0; });
     if (!pool.length) { u.length = 0; pool = list; }
     var w = pool[Math.floor(Math.random() * pool.length)]; u.push(w.word);
@@ -47,7 +53,7 @@ var Overlays = (function () {
   // is picked when it is missing). Returns a Promise that resolves with the result.
   function question(g, lv, pre) {
     return new Promise(function (resolve) {
-      var q = pre || pick(lv), w = { word: q.word }, opts = q.opts;
+      var q = pre || pick(lv, g.extreme), w = { word: q.word }, opts = q.opts;
       var boost = g.players[g.turn].armed, finished = false;
       $("q-level").textContent = lv.name + ", " + pl(lv.points, "point") + (boost ? ", " + (boost === "shield" ? "Shield" : boost.replace("x", "") + "x") + " active" : "");
       $("q-word").textContent = w.word;

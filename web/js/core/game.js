@@ -2,18 +2,29 @@
 // Modes: "solo", "1v1", "2v2". Teams are 0 and 1; players are numbered in order (team 0 first).
 // Power-ups (2x, 3x, Shield) are chosen AFTER the difficulty is shown and BEFORE the word is shown.
 // Only one can be active per question. Whatever is armed is used up, right or wrong.
+//
+// 0.1.4 adds two flags that are stored in the game itself, so a guest's screen gets them with every picture:
+//   extreme  : Extreme mode (the wheel flips the level odds, see wheel.js). The rules below do not change.
+//   inf      : Infinite mode. There is no 100 points goal. Every player has 3 hearts, a wrong answer or a time-up
+//              costs one, and a player with no hearts left is out (skipped, like after resigning).
+//              Solo: the game ends when the hearts are gone. 1 vs 1 and 2 vs 2: when every player of one side is
+//              out, the other side plays on until it passes the score the first side ended with (then it wins) or
+//              loses its own hearts (then the higher score wins; the same score is a draw).
 var Game = (function () {
   var MULT = { x2:2, x3:3, shield:1 };
+  var HEARTS = 3;
   var cur = function (g) { return g.players[g.turn]; };
 
-  // cfg: { mode, teams:[{ name, fmt, color, players:[names], pfmt:[text styles] }] }. order: player numbers in play order.
+  // cfg: { mode, teams:[{ name, fmt, color, players:[names], pfmt:[text styles] }], extreme, infinite }.
+  // order: player numbers in play order.
   // A text style (fmt) is any of "b" (bold), "i" (italic) and "u" (underline).
   function create(cfg, order) {
     var g = { mode:cfg.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0,
-      offered:false, over:false, winner:null, reason:"" };
+      offered:false, over:false, winner:null, reason:"", extreme:!!cfg.extreme, inf:!!cfg.infinite };
     cfg.teams.forEach(function (t, ti) {
       var ids = t.players.map(function (name, k) {
         g.players.push({ name:name, fmt:(t.pfmt && t.pfmt[k]) || "", team:ti, score:0, inv:{ x2:0, x3:0, shield:0 }, armed:null, out:false });
+        if (cfg.infinite) g.players[g.players.length - 1].hearts = HEARTS;
         return g.players.length - 1;
       });
       g.teams.push({ name:t.name, fmt:t.fmt || "", color:t.color, players:ids, out:false });
@@ -69,11 +80,52 @@ var Game = (function () {
     if (ok) pts = lv.points * (m ? MULT[m] : 1);
     else if (m === "shield") pts = lv.points / 2;
     p.score += pts;
+    if (!ok && g.inf && p.hearts > 0) p.hearts--; // a wrong answer or a time-up costs a heart, a Shield or not
     return pts;
   }
+  // Infinite mode: the current player has just lost the last heart. Marks them out and decides if the game is over.
+  // Returns "win" when it is, otherwise "".
+  function infElim(g) {
+    var p = cur(g), t = g.teams[p.team];
+    if (p.hearts > 0 || p.out) return "";
+    p.out = true; p.dead = true;
+    t.out = t.players.every(function (i) { return g.players[i].out; });
+    if (g.mode === "solo") {
+      g.over = true; g.winner = 0;
+      g.reason = "ran out of hearts with " + fmtN(p.score) + " " + (p.score === 1 ? "point" : "points") + " after " + g.turns + " " + (g.turns === 1 ? "turn" : "turns");
+      return "win";
+    }
+    return infCheck(g);
+  }
+  // Two sides. Both out: the higher team score wins (equal: draw). One side out: the other wins as soon as it is ahead.
+  function infCheck(g) {
+    var a = g.teams[0].out, b = g.teams[1].out, sa = teamScore(g, 0), sb = teamScore(g, 1);
+    if (!a && !b) return "";
+    if (a && b) {
+      g.over = true; g.winner = sa === sb ? null : sa > sb ? 0 : 1;
+      g.reason = sa === sb ? "same score when the hearts ran out" : "higher score when the hearts ran out";
+      return "win";
+    }
+    var live = a ? 1 : 0, dead = 1 - live;
+    if (teamScore(g, live) > teamScore(g, dead)) {
+      g.over = true; g.winner = live; g.reason = g.teams[dead].name + " ran out of hearts and " + g.teams[live].name + " is ahead";
+      return "win";
+    }
+    return "";
+  }
+  function fmtN(n) { return n % 1 ? n.toFixed(1) : String(n); }
+
   // Returns "next", "win" or "sudden".
   function endTurn(g) {
     g.turns++; g.offered = false;
+    if (g.inf) {
+      var r = infElim(g);
+      if (r) return r;
+      if (g.mode === "solo") return "next";
+      advance(g); // no rounds and no sudden death in Infinite mode
+      // The side that is still playing may have just passed the side that is out.
+      return g.teams.some(function (t) { return t.out; }) ? (infCheck(g) || "next") : "next";
+    }
     if (g.mode === "solo") {
       if (cur(g).score < 100) return "next";
       g.over = true; g.winner = 0; g.reason = "reached 100 points in " + g.turns + " turns";
@@ -86,10 +138,15 @@ var Game = (function () {
     var p = cur(g), t = g.teams[p.team];
     p.out = true; g.offered = false;
     t.out = t.players.every(function (i) { return g.players[i].out; });
-    if (t.out) {
+    if (t.out && !g.inf) {
       g.over = true; g.winner = 1 - p.team;
       g.reason = t.players.length > 1 ? t.name + " has no players left" : p.name + " resigned";
       return "win";
+    }
+    if (g.inf) {
+      if (infCheck(g)) return "win";
+      advance(g); // no 100-point rounds or sudden death in Infinite mode
+      return g.teams.some(function (team) { return team.out; }) ? (infCheck(g) || "next") : "next";
     }
     return advance(g) ? roundEnd(g) : "next";
   }

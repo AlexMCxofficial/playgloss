@@ -50,6 +50,7 @@
 <button class="small" type="button" data-scheme-set="playgloss">PlayGloss</button>
 <button class="small" type="button" data-scheme-set="oled">OLED</button>
 <button class="small" type="button" data-scheme-set="yaru">Yaru</button>
+<button class="small" type="button" data-scheme-set="extreme">Extreme</button>
 <button class="small" type="button" data-scheme-set="custom">Custom</button>
 </div>
 </div>
@@ -58,8 +59,33 @@
 <p class="note">Pick the accent color used for buttons and highlights. Text on top of it turns black or white automatically so it stays readable.</p>
 </div>
 
-<p class="note">OLED uses pure black, so choosing it switches to Dark. Choosing Light leaves OLED.</p>
+<p class="note">OLED uses pure black and Extreme uses dark red with a red accent. Choosing either one switches to Dark, and choosing Light leaves it.</p>
 <p class="note">These choices are saved only on this device and are never sent anywhere.</p>
+</section>
+
+<section aria-labelledby="modes">
+<h2 id="modes">Modes</h2>
+<p class="note">Modes change the rules of the game. They are off by default, so you have to turn them on yourself.</p>
+
+<div class="setrow">
+<span class="setlabel" id="mode-label">Mode</span>
+<div class="row" role="group" aria-labelledby="mode-label">
+<button class="small" type="button" data-mode-set="default">Default</button>
+<button class="small" type="button" data-mode-set="extreme">Extreme</button>
+</div>
+</div>
+
+<div class="setrow">
+<span class="setlabel" id="infinite-label">Infinite</span>
+<div class="row" role="group" aria-labelledby="infinite-label">
+<button class="small" type="button" data-infinite-set="off">Off</button>
+<button class="small" type="button" data-infinite-set="on">On</button>
+</div>
+</div>
+
+<p class="note"><strong>Extreme</strong> flips how often the levels come up: Impossible comes as often as Very Easy does in Default, and the other levels flip the same way. Points, time per level and the Easter egg odds stay the same. Choosing Extreme also switches the color to Extreme. Choosing Default puts back the look you had before, unless you changed it yourself. You can still use the Extreme color in Default mode and the other way round.</p>
+<p class="note"><strong>Infinite</strong> works with Default and Extreme. There is no 100 points goal: everyone has 3 hearts, and each wrong answer or time up costs one. The game goes on until the hearts are gone. The heart picture is from the <a href="https://minecraft.wiki/">Minecraft Wiki</a> (see Credits).</p>
+<p class="note">When you host an online game, you pick its mode in the Host a game tab instead.</p>
 </section>
 
 <section aria-labelledby="online">
@@ -88,6 +114,7 @@
 </ul>
 <p>PlayGloss collects no data.</p>
 </footer>
+<script src="js/modes.js"></script>
 <script src="js/color.js"></script>
 <script src="js/settings.js"></script>
 </body>

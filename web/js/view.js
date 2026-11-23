@@ -18,22 +18,48 @@ var View = (function () {
   function inv(i) {
     return PU.filter(function (b) { return i[b[0]]; }).map(function (b) { return b[1] + " ×" + i[b[0]]; }).join("  ") || "No power-ups";
   }
-  function pname(name, f, out) {
+  // out: the player left the game. dead: they left because their hearts ran out (Infinite mode), not because they resigned.
+  var gone = function (p) { return p.dead ? " (out of hearts)" : " (resigned)"; };
+  function pname(name, f, out, dead) {
     var p = h("p", "pname"); p.appendChild(nm(name, f));
-    if (out) p.appendChild(h("span", "", " (resigned)"));
+    if (out) p.appendChild(h("span", "", dead ? " (out of hearts)" : " (resigned)"));
     return p;
+  }
+  // Infinite mode: three hearts, the lost ones grey. The picture is from the Minecraft Wiki (see CREDITS.md).
+  function hearts(n) {
+    n = Math.max(0, Math.min(3, Math.floor(Number(n)) || 0));
+    var box = h("span", "hearts");
+    box.setAttribute("role", "img"); box.setAttribute("aria-label", n + " of 3 hearts");
+    for (var i = 0; i < 3; i++) {
+      var im = h("img", "heart" + (i < n ? "" : " lost"));
+      im.src = "img/heart.png"; im.alt = ""; im.width = 27; im.height = 27;
+      box.appendChild(im);
+    }
+    return box;
+  }
+  // The small line above the turn banner: which mode this game is played in.
+  function modeLine(g) {
+    var el = $("modeline");
+    if (!el) return;
+    var parts = [];
+    if (g.extreme) parts.push("Extreme");
+    if (g.inf) parts.push("Infinite");
+    el.textContent = parts.join(" - ");
+    el.hidden = !parts.length;
   }
   // o.acts(pi): true if the buttons of player pi may be used right now (by this device).
   function card(g, pi, btns, o) {
     var p = g.players[pi], on = !g.over && g.turn === pi, c = tint(g, h("div", "pcard" + (on ? " on" : "") + (p.out ? " out" : "")), p.team);
     c.appendChild(h("div", "stripe"));
-    c.appendChild(pname(p.name, p.fmt, p.out));
+    c.appendChild(pname(p.name, p.fmt, p.out, p.dead));
     c.appendChild(h("p", "score", fmt(p.score)));
+    if (g.inf) c.appendChild(hearts(p.hearts));
     c.appendChild(h("p", "inv", inv(p.inv)));
     if (btns) {
       var can = !!(o && o.acts && o.acts(pi)), r = h("div", "row"), d = h("button", "small", "Offer draw"), z = h("button", "small", "Resign");
       d.type = z.type = "button"; d.dataset.act = "draw"; z.dataset.act = "resign"; d.dataset.p = z.dataset.p = pi;
-      d.disabled = !can || g.offered; z.disabled = !can;
+      var foe = g.teams[1 - p.team];
+      d.disabled = !can || g.offered || !!(foe && foe.out); z.disabled = !can; // nobody is left to answer a draw offer
       r.appendChild(d); r.appendChild(z); c.appendChild(r);
     }
     return c;
@@ -49,7 +75,7 @@ var View = (function () {
     fill(hd, [nm(t.name, t.fmt), " leaderboard"]); box.appendChild(hd);
     t.players.slice().sort(function (a, b) { return g.players[b].score - g.players[a].score; }).forEach(function (i) {
       var p = g.players[i], pc = tot ? Math.round(p.score / tot * 100) : 0, li = tint(g, h("li"), ti), bar = h("div", "lbar"), f = h("div"), n = h("span", "ln");
-      n.appendChild(nm(p.name, p.fmt)); if (p.out) n.appendChild(h("span", "", " (resigned)"));
+      n.appendChild(nm(p.name, p.fmt)); if (p.out) n.appendChild(h("span", "", gone(p)));
       li.appendChild(h("span", "lp", fmt(p.score) + " pts (" + pc + "%)")); li.appendChild(n);
       f.style.width = pc + "%"; bar.appendChild(f); li.appendChild(bar); ol.appendChild(li);
     });
@@ -65,7 +91,7 @@ var View = (function () {
     g.order.forEach(function (i) {
       var p = g.players[i], li = tint(g, h("li", (!g.over && g.turn === i ? "now" : "") + (p.out ? " out" : "")), p.team);
       if (!g.over && g.turn === i) li.setAttribute("aria-current", "true");
-      li.appendChild(h("i", "dot")); li.appendChild(nm(p.name, p.fmt)); if (p.out) li.appendChild(h("span", "", " (resigned)"));
+      li.appendChild(h("i", "dot")); li.appendChild(nm(p.name, p.fmt)); if (p.out) li.appendChild(h("span", "", gone(p)));
       ol.appendChild(li);
     });
     box.appendChild(ol);
@@ -92,7 +118,9 @@ var View = (function () {
     mini.textContent = "";
     if (g.mode === "1v1") g.players.forEach(function (q, i) {
       var c = tint(g, h("span", "mchip" + (!g.over && g.turn === i ? " on" : "")), q.team);
-      c.appendChild(h("i", "dot")); c.appendChild(nm(q.name, q.fmt)); c.appendChild(h("span", "", " " + fmt(q.score))); mini.appendChild(c);
+      c.appendChild(h("i", "dot")); c.appendChild(nm(q.name, q.fmt)); c.appendChild(h("span", "", " " + fmt(q.score)));
+      if (g.inf) c.appendChild(hearts(q.hearts));
+      mini.appendChild(c);
     });
     [0, 1].forEach(function (ti) {
       var cards = $("cards-" + ti), lb = $("lb-" + ti);
@@ -103,9 +131,9 @@ var View = (function () {
     });
     orderList(g, $("order-center")); orderList(g, $("order-mobile"));
     for (var k = 0; k < tabs.length; k++) tabs[k].setAttribute("aria-selected", tabs[k].dataset.tab === tab);
-    banner(g, o.sd, $("turn"));
+    banner(g, o.sd, $("turn")); modeLine(g);
     return tab;
   }
 
-  return { PU:PU, h:h, fmt:fmt, pl:pl, nm:nm, fill:fill, tint:tint, paint:paint, card:card, tbox:tbox, board:board, orderList:orderList, banner:banner };
+  return { PU:PU, hearts:hearts, h:h, fmt:fmt, pl:pl, nm:nm, fill:fill, tint:tint, paint:paint, card:card, tbox:tbox, board:board, orderList:orderList, banner:banner };
 })();

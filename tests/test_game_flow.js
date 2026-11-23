@@ -116,6 +116,7 @@ function sandbox(htmlFile, extra) {
     click(hp, btn($h("setup-body"), "Host a game")); await settle();   // the tab
     click(hp, buttons($h("setup-body")).filter((b) => b.textContent === "Host a game").pop()); await settle(); // the button
     assert.strictEqual($h("lobby").hidden, false, "lobby is shown");
+    assert.strictEqual($h("mtabs").hidden, true, "phone game tabs stay hidden in the host lobby");
     click(hp, buttons($h("lobby-seats")).filter((b) => b.textContent === "Open for guest")[1]); await settle(); // seat 2 is for the iPad
     const key = $h("host-link").textContent.split("#")[1]; assert(key, "the lobby shows the join link");
     G = sandbox("join.html", {
@@ -133,6 +134,7 @@ function sandbox(htmlFile, extra) {
     const approve = btn($h("dlg-btns"), "Approve"); assert(approve, "the host is asked to approve");
     click(hp, approve); await advance(300);
     assert(/Seated at seat 2|Waiting for host to start/.test($g("lobby-status").textContent), $g("lobby-status").textContent);
+    assert.strictEqual($g("mtabs").hidden, true, "phone game tabs stay hidden in the guest lobby");
   });
 
   const startGame = async (hostFirst) => {
@@ -147,6 +149,8 @@ function sandbox(htmlFile, extra) {
 
   await test("guest's turn: the question is on the guest's screen only", async () => {
     await startGame(false);
+    assert.strictEqual($h("mtabs").hidden, false, "phone game tabs appear in the host game");
+    assert.strictEqual($g("mtabs").hidden, false, "phone game tabs appear in the guest game");
     assert.strictEqual($g("spin").disabled, false, "the guest can spin");
     assert.strictEqual($h("spin").disabled, true, "the host cannot spin for the guest");
     pick("normal");

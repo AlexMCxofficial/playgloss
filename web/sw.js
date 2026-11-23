@@ -5,12 +5,12 @@ var CACHE = "playgloss-v12";
 var FILES = [
   "./", "index.html", "play.html", "join.html", "docs.html", "settings.html", "manifest.json", "logo.svg",
   "css/style.css",
-  "js/theme.js", "js/app.js", "js/pwa.js", "js/view.js", "js/ui.js", "js/words.js", "js/color.js", "js/settings.js",
+  "js/theme.js", "js/app.js", "js/pwa.js", "js/view.js", "js/ui.js", "js/words.js", "js/words_extreme.js", "js/modes.js", "js/color.js", "js/settings.js",
   "js/overlays.js", "js/join.js",
   "js/core/wheel.js", "js/core/game.js", "js/core/filter.js",
   "js/online/proto.js", "js/online/session.js", "js/online/host.js", "js/online/guest.js", "js/online/link.js",
   "js/vendor/nacl-fast.min.js",
-  "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
+  "img/heart.png", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"
 ];
 
 self.addEventListener("install", function (e) {

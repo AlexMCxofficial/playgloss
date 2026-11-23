@@ -1,13 +1,13 @@
-// Look of the site: dark or light theme, color scheme (PlayGloss, OLED, Yaru, Custom) and custom accent color.
+// Look of the site: dark or light theme, color scheme (PlayGloss, OLED, Yaru, Extreme, Custom) and custom accent color.
 // Saved only on this device (localStorage) and never sent anywhere. MIT License (see LICENSE).
 var PGTheme = (function () {
-  var root = document.documentElement, SCHEMES = ["playgloss", "oled", "yaru", "custom"], subs = [];
+  var root = document.documentElement, SCHEMES = ["playgloss", "oled", "yaru", "extreme", "custom"], subs = [];
   var read = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
   var save = function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} };
   var st = { theme:read("theme") === "light" ? "light" : "dark", scheme:read("scheme"), accent:read("accent") };
   if (SCHEMES.indexOf(st.scheme) < 0) st.scheme = "playgloss";
   if (!/^#[0-9a-f]{6}$/.test(st.accent || "")) st.accent = "#1565c0";
-  if (st.scheme === "oled") st.theme = "dark";
+  if (st.scheme === "oled" || st.scheme === "extreme") st.theme = "dark";
 
   function lum(c) {
     var n = parseInt(c.slice(1), 16);
@@ -19,6 +19,8 @@ var PGTheme = (function () {
   function apply() {
     root.setAttribute("data-theme", st.theme);
     root.setAttribute("data-scheme", st.scheme);
+    var meta = document.querySelector && document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", st.scheme === "extreme" ? "#2a0505" : st.theme === "light" ? "#ffffff" : "#000000");
     var s = root.style;
     if (st.scheme === "custom") {
       // text on the accent color is black or white, whichever is easier to read
@@ -31,13 +33,13 @@ var PGTheme = (function () {
     }
   }
   function get() { return { theme:st.theme, scheme:st.scheme, accent:st.accent }; }
-  // OLED is a dark-only look: choosing it switches to Dark, and choosing Light leaves OLED.
+  // OLED and Extreme are dark-only looks: choosing one switches to Dark, and choosing Light leaves it.
   function set(p) {
     if (p.theme) st.theme = p.theme === "light" ? "light" : "dark";
     if (p.scheme && SCHEMES.indexOf(p.scheme) >= 0) st.scheme = p.scheme;
     if (p.accent && /^#[0-9a-f]{6}$/.test(p.accent)) st.accent = p.accent;
-    if (p.scheme === "oled") st.theme = "dark";
-    else if (p.theme === "light" && st.scheme === "oled") st.scheme = "playgloss";
+    if (p.scheme === "oled" || p.scheme === "extreme") st.theme = "dark";
+    else if (p.theme === "light" && (st.scheme === "oled" || st.scheme === "extreme")) st.scheme = "playgloss";
     save("theme", st.theme); save("scheme", st.scheme); save("accent", st.accent);
     apply();
     subs.forEach(function (f) { f(get()); });

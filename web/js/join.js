@@ -112,10 +112,11 @@
 
   var mySeat = -1, myToken = null, myName = "", phase = "lobby", g = null, sd = false, tab = "game";
   var busy = false, qNow = -1, qDone = false, qTimer = null, spinN = 0, rot = 0, dlgKind = null;
-  var away = false;
+  var away = false, rules = { extreme:false, inf:false }; // rules: the mode the host chose, from the lobby message
 
   function show(id) {
     ["join", "lobby", "game"].forEach(function (x) { $(x).hidden = x !== id; });
+    $("mtabs").hidden = id !== "game"; // the phone tabs belong to a running game only
   }
 
   function backToJoin(text) {
@@ -130,7 +131,7 @@
     if (e.t === "sent") {
       $("join-status").textContent = "Waiting for the host to let you in...";
     } else if (e.t === "connfail") {
-      backToJoin("Could not reach the host (" + e.why + "). Check that you are on the same Wi-Fi and try again.");
+      backToJoin("Could not reach the host (" + e.why + "). Check that you are on the same Wi-Fi and try again. If that Wi-Fi shows a login page (school, hotel, cafe), sign in there first.");
     } else if (e.t === "lost") {
       mySeat = -1; myToken = null; clearGame();
       backToJoin(e.why + " You can try to join again.");
@@ -152,6 +153,7 @@
     } else if (e.t === "lobby") {
       phase = e.phase;
       if (typeof e.you === "number") mySeat = e.you;
+      rules = Session.cleanRules(e.rules);
       renderLobby(e.seats, e.you);
       if (phase === "game") show("game");
       else { clearGame(); show("lobby"); }
@@ -180,8 +182,10 @@
 
   // Lobby rendering
   function renderLobby(seats, you) {
-    var box = $("lobby-seats");
+    var box = $("lobby-seats"), ml = $("lobby-mode");
     box.textContent = "";
+    ml.textContent = "Mode: " + (rules.extreme ? "Extreme" : "Default") + (rules.inf ? ", Infinite (3 hearts, no 100 points goal)" : "");
+    ml.hidden = !rules.extreme && !rules.inf;
     seats.forEach(function (s, i) {
       var p = h("div", "panel"), taken = !!s.taken && you !== i; // the host sends name, open, taken and mine
       p.appendChild(h("h3", "", "Seat " + (i + 1) + (s.open ? " (open)" : "")));

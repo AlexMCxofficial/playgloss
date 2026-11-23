@@ -84,6 +84,10 @@ A minimal QR code generator, used to draw the QR code that guests scan to join a
 
 ha.mr by p2r3 (MIT, Copyright (c) 2026 p2r3): the idea of packing QR codes into the compact alphanumeric mode inspired the all-caps link trick used for the join QR code. Only the lean-qr file from ha.mr is included; ha.mr's own compress.js and alphabets.js are not used.
 
+### Minecraft heart image
+
+The three red hearts used for Infinite mode come from the image supplied by the PlayGloss maintainer in this project and are credited to the Minecraft Wiki's [Health article](https://minecraft.wiki/w/Health). Minecraft heart artwork is Mojang-owned; it is **not** covered by PlayGloss's MIT license. It is included as a separate third-party asset and must keep its own attribution and any applicable rights notices. Minecraft is a trademark of Mojang Studios and Microsoft; PlayGloss is not affiliated with or endorsed by them.
+
 ## Original work
 
 The wheel, rules, interface, name filter, color picker, settings and Easter egg are original to PlayGloss (MIT, AlexMC). The app icon and logo were supplied by AlexMC.

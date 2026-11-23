@@ -50,6 +50,7 @@
 <section id="lobby" class="setup" aria-label="Lobby" hidden>
 <h2 class="sethead">Lobby</h2>
 <p id="lobby-status" class="note"></p>
+<p id="lobby-mode" class="note" hidden></p>
 <div id="lobby-seats" class="panels"></div>
 <div class="row"><button id="lobby-leave" class="small act" type="button" hidden>Leave</button></div>
 </section>
@@ -61,6 +62,7 @@
 <div class="arena">
 <aside class="side"><div id="lb-0" class="lb"></div><div id="cards-0" class="cards"></div></aside>
 <div class="center">
+<p id="modeline" class="modeline" hidden></p>
 <p class="turn" id="turn" aria-live="polite"></p>
 <div class="stage"><div class="pointer" aria-hidden="true"></div><div id="wheel"></div></div>
 <p id="msg" role="status" aria-live="polite"></p>
@@ -74,7 +76,7 @@
 <div id="order-mobile" class="olist"></div>
 </div>
 
-<nav id="mtabs" class="mtabs" aria-label="Game sections">
+<nav id="mtabs" class="mtabs" aria-label="Game sections" hidden>
 <button type="button" data-tab="game">Game</button>
 <button type="button" data-tab="players">Players</button>
 <button type="button" data-tab="board">Leaderboard</button>

@@ -25,6 +25,9 @@ var Session = (function () {
     return r;
   }
 
+  // The mode of the game ("rules") that the lobby tells guests: { extreme, inf }. Always two plain booleans.
+  function cleanRules(r) { return { extreme:!!(r && r.extreme), inf:!!(r && (r.inf || r.infinite)) }; }
+
   // Checks the game picture the host sent and returns a safe copy, or null. Names are filtered again here.
   function cleanSnap(g, Filter) {
     var COLOR = /^#[0-9a-fA-F]{6}$/, FMT = /^[biu]{0,3}$/;
@@ -34,13 +37,18 @@ var Session = (function () {
     if (!g || typeof g !== "object" || ["solo", "1v1", "2v2"].indexOf(g.mode) < 0) return null;
     var np = g.mode === "solo" ? 1 : g.mode === "1v1" ? 2 : 4, nt = g.mode === "solo" ? 1 : 2;
     if (!Array.isArray(g.players) || g.players.length !== np || !Array.isArray(g.teams) || g.teams.length !== nt || !Array.isArray(g.order)) return null;
-    var out = { mode:g.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0, offered:!!g.offered, over:!!g.over, winner:null, reason:"" };
+    var out = { mode:g.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0, offered:!!g.offered, over:!!g.over, winner:null, reason:"", extreme:!!g.extreme, inf:!!g.inf };
     for (var i = 0; i < np; i++) {
       var p = g.players[i];
       if (!p || !num(p.score) || (p.team !== 0 && p.team !== 1) || !p.inv) return null;
       var v = { x2:p.inv.x2, x3:p.inv.x3, shield:p.inv.shield };
       if (!num(v.x2) || !num(v.x3) || !num(v.shield)) return null;
-      out.players.push({ name:name(p.name, "Player " + (i + 1)), fmt:fmt(p.fmt), team:Math.min(p.team, nt - 1), score:p.score, inv:v, armed:POWER[p.armed] ? p.armed : null, out:!!p.out });
+      var pl = { name:name(p.name, "Player " + (i + 1)), fmt:fmt(p.fmt), team:Math.min(p.team, nt - 1), score:p.score, inv:v, armed:POWER[p.armed] ? p.armed : null, out:!!p.out };
+      if (out.inf) { // Infinite mode: hearts left (0 to 3) and whether the player is out because they ran out
+        if (!(p.hearts >= 0 && p.hearts <= 3) || p.hearts !== Math.floor(p.hearts)) return null;
+        pl.hearts = p.hearts; pl.dead = !!p.dead;
+      }
+      out.players.push(pl);
     }
     for (var t = 0; t < nt; t++) {
       var s = g.teams[t];
@@ -87,8 +95,9 @@ var Session = (function () {
   /* ---------- the host ---------- */
   // o: { Proto, Filter, K, send(id, text), drop(id), onEvent(e), onAction(seat, action), rnd(): 12 random bytes }
   function Host(o) {
-    this.o = o; this.conns = {}; this.seats = []; this.phase = "lobby";
+    this.o = o; this.conns = {}; this.seats = []; this.phase = "lobby"; this.rules = cleanRules(null);
   }
+  Host.prototype.setRules = function (r) { this.rules = cleanRules(r); }; // call before guests join; sent with every lobby message
   Host.prototype.setSeats = function (list) { // [{ name, open }]; keeps guests who already have a seat
     var old = this.seats;
     this.seats = list.map(function (s, i) {
@@ -123,7 +132,7 @@ var Session = (function () {
     Object.keys(this.conns).forEach(function (id) {
       var c = me.conns[id];
       if (c.state !== "ok") return;
-      me.tell(id, { t:"lobby", phase:me.phase, you:c.seat, seats:me.seats.map(function (s, i) {
+      me.tell(id, { t:"lobby", phase:me.phase, you:c.seat, rules:me.rules, seats:me.seats.map(function (s, i) {
         return { name:s.name, open:s.open, taken:!!(s.guest && me.conns[s.guest]), mine:c.seat === i };
       }) });
     });
@@ -268,6 +277,6 @@ var Session = (function () {
   Guest.prototype.take = function (seat, name) { this.say({ t:"take", seat:seat, name:cleanName(name) }); };
   Guest.prototype.act = function (a, extra) { var m = { t:"do", a:a }; if (extra) for (var k in extra) m[k] = extra[k]; this.say(m); };
 
-  return { Host:Host, Guest:Guest, cleanSnap:cleanSnap, cleanExtras:cleanExtras, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
+  return { Host:Host, Guest:Guest, cleanRules:cleanRules, cleanSnap:cleanSnap, cleanExtras:cleanExtras, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Session;
