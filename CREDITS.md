@@ -94,4 +94,4 @@ The wheel, rules, interface, name filter, color picker, settings and Easter egg 
 
 ## Made with AI assistance
 
-Most of the code and text was written by Claude, an AI assistant made by Anthropic, from instructions and testing by AlexMC. See "How this project was made" in `README.md`.
+Most of the code was written by Claude, an AI assistant made by Anthropic, from instructions and testing by AlexMC. See "How this project was made" in `README.md`.
