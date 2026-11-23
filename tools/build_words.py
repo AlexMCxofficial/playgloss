@@ -2,8 +2,9 @@
 """Build web/js/words.js for PlayGloss from Princeton WordNet + a word-frequency list.
 
 Setup (once):
-    pip install nltk better-profanity
-    python3 -c "import nltk; nltk.download('wordnet')"
+    pip install nltk wordfreq better-profanity
+    python -m nltk.downloader wordnet
+    python -c "from wordfreq import top_n_list; from pathlib import Path; Path('freq.txt').write_text('\n'.join(top_n_list('en',120000)), encoding='utf-8')"
 
 Frequency list: a plain text file, ONE WORD PER LINE, MOST COMMON FIRST (extra columns
 such as counts are ignored). Choose a list whose license fits your project and credit
@@ -17,6 +18,13 @@ Run from the PROJECT ROOT (the folder that contains web/ and tools/):
 
 Output: web/js/words.js (the game) and tools/words_review.tsv (read this before releasing).
 Same --seed gives the same set every time.
+
+EXTREME MODE (0.1.4). Extreme flips how often the levels come up, so the hard levels need far more words than the
+normal 25 / 50 / 75. Add --extreme to build that list with the counts flipped (Impossible 500 ... Very Easy 25):
+    python tools/build_words.py --freq freq.txt --extreme
+It writes web/js/words_extreme.js (var WORDS_EXTREME) and tools/words_extreme_review.tsv. With --extreme and no
+--freq file, the ranked word list is made for you with the wordfreq package (pip install wordfreq), so there is
+nothing to redirect into a file. That works the same on Windows (PowerShell), macOS and Linux.
 """
 import argparse, json, random, re, sys
 from functools import lru_cache
@@ -38,6 +46,8 @@ OFFENSIVE = re.compile(r"offensive|vulgar|derogatory|disparaging|obscene|slur|co
                        r"sexually|obscenity|pejorative|insulting|taboo", re.I)
 BAD_DEF = re.compile(r"plural of|past tense|past participle|variant|abbreviation|short for|alternative|"
                      r"informal|slang|used (?:as|in|of|with)|\bsee\b|\bhttp", re.I)
+# Words that are not offensive but do not belong in a family word game (checked on the word itself, not its meanings).
+SENSITIVE = {"faeces", "feces", "faecal", "fecal", "abortionist", "sexuality"}
 WORD = re.compile(r"^[a-z]{3,}$")
 
 
@@ -66,7 +76,7 @@ def candidates(words, wn, bad=None, limit=None):
             break
         if i % 10000 == 0:
             print(f"  checked {i} words, {len(out)} usable", flush=True)
-        if w in seen or w in STOP or not WORD.match(w):
+        if w in seen or w in STOP or w in SENSITIVE or not WORD.match(w):
             continue
         seen.add(w)
         syns = wn.synsets(w)
@@ -96,7 +106,20 @@ def good_wrong(t, c):
     return t["word"][: max(4, len(t["word"]) - 3)] not in c["meaning"].lower()
 
 
-def build(words, wn, seed=1, log=print, bad=None):
+# Extreme mode: the same eight levels with the word counts flipped (the hardest level gets the most words).
+EXTREME_TIERS = [(tid, n) for (tid, _), (_, n) in zip(TIERS, reversed(TIERS))]
+
+
+def freq_from_wordfreq(n):
+    """The n most common English words, most common first (needs: pip install wordfreq)."""
+    try:
+        from wordfreq import top_n_list
+    except ImportError:
+        sys.exit("wordfreq is missing. Run: pip install wordfreq   (or give your own list with --freq FILE)")
+    return top_n_list("en", n)
+
+
+def build(words, wn, seed=1, log=print, bad=None, tiers=TIERS):
     cand = candidates(words, wn, bad, limit=WINDOWS[-1][1] + 5000)
     n = len(cand)
     log(f"{n} usable words after cleaning")
@@ -108,7 +131,7 @@ def build(words, wn, seed=1, log=print, bad=None):
     for c in cand:
         bypos.setdefault(c["pos"], []).append(c)
     result, review, taken = {}, [], set()
-    for (tid, count), (lo, hi) in zip(TIERS, WINDOWS):
+    for (tid, count), (lo, hi) in zip(tiers, WINDOWS):
         lo, hi = int(lo * scale), int(hi * scale)
         window = cand[lo:hi]
         rnd.shuffle(window)
@@ -139,13 +162,23 @@ def build(words, wn, seed=1, log=print, bad=None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--freq", required=True, help="word list, most common first")
-    ap.add_argument("--out", default="web/js/words.js")
-    ap.add_argument("--review", default="tools/words_review.tsv")
+    ap.add_argument("--freq", help="word list, most common first (with --extreme it is optional: wordfreq is used)")
+    ap.add_argument("--extreme", action="store_true", help="build the Extreme mode list (flipped word counts) instead")
+    ap.add_argument("--wordfreq-size", type=int, default=120000, help="how many words to take from wordfreq (default 120000)")
+    ap.add_argument("--out")
+    ap.add_argument("--review")
     ap.add_argument("--blocklist", help="optional file of extra words to exclude, one per line")
-    ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--seed", type=int)
     ap.add_argument("--no-profanity-filter", action="store_true", help="skip the better-profanity check (not recommended)")
     a = ap.parse_args()
+    if not a.freq and not a.extreme:
+        ap.error("--freq FILE is required (only --extreme can make its own list with wordfreq)")
+    name, var = ("words_extreme", "WORDS_EXTREME") if a.extreme else ("words", "WORDS")
+    a.out = a.out or f"web/js/{name}.js"
+    a.review = a.review or f"tools/{name}_review.tsv"
+    if a.seed is None:
+        a.seed = 2 if a.extreme else 1
+    tiers = EXTREME_TIERS if a.extreme else TIERS
     try:
         from nltk.corpus import wordnet as wn
         wn.synsets("test")
@@ -163,16 +196,16 @@ def main():
     block = set()
     if a.blocklist:
         block = {l.strip().lower() for l in open(a.blocklist, encoding="utf-8") if l.strip()}
-    words = []
-    for line in open(a.freq, encoding="utf-8"):
-        p = line.split()
-        if p and p[0].lower() not in block:
-            words.append(p[0].lower())
-    result, review = build(words, wn, a.seed, bad=bad)
-    with open(a.out, "w", encoding="utf-8") as f:
-        f.write("// Generated by tools/build_words.py from Princeton WordNet 3.0 (see CREDITS.md). Do not edit by hand.\n")
-        f.write("var WORDS = " + json.dumps(result, ensure_ascii=False, indent=1) + ";\n")
-    with open(a.review, "w", encoding="utf-8") as f:
+    if a.freq:
+        raw = [l.split()[0] for l in open(a.freq, encoding="utf-8-sig") if l.split()]  # utf-8-sig: also reads a file saved with a BOM
+    else:
+        raw = freq_from_wordfreq(a.wordfreq_size)
+    words = [w.lower() for w in raw if w.lower() not in block]
+    result, review = build(words, wn, a.seed, bad=bad, tiers=tiers)
+    with open(a.out, "w", encoding="utf-8", newline="\n") as f:
+        f.write("// Generated by tools/build_words.py" + (" --extreme" if a.extreme else "") + " from Princeton WordNet 3.0 (see CREDITS.md). Do not edit by hand.\n")
+        f.write("var " + var + " = " + json.dumps(result, ensure_ascii=False, indent=1) + ";\n")
+    with open(a.review, "w", encoding="utf-8", newline="\n") as f:
         f.write("level\tword\tpos\tcorrect meaning\twrong meanings\n")
         for r in review:
             f.write("\t".join(r) + "\n")
