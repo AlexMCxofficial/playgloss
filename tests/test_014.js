@@ -49,7 +49,7 @@ console.log("ok  Infinite does not trigger a score goal or sudden death");
 
 const snap = ctx.Session.cleanSnap(Object.assign({}, oneVsOne), { bad:() => false });
 assert(snap && snap.inf && snap.players[0].hearts === 0 && snap.players[0].dead);
-assert.strictEqual(JSON.stringify(ctx.Session.cleanRules({ extreme:true, inf:true })), JSON.stringify({ extreme:true, inf:true }));
+assert.strictEqual(JSON.stringify(ctx.Session.cleanRules({ extreme:true, inf:true })), JSON.stringify({ extreme:true, inf:true, color:"default" }));
 console.log("ok  Online game snapshots preserve modes and hearts");
 
 // Settings: mode automatically follows Extreme's look, but a separately chosen Extreme color stays independent.
