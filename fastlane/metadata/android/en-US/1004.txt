@@ -1,0 +1,1 @@
+Custom mode: choose Default or Extreme, Infinite with 1 to 10 hearts or a target score from 100 to 1000, the time to answer, and the colors of the wheel. Progress bars above each name fill as you score (or empty as you lose hearts). Hosts can play Custom online and give every guest the Extreme look. The Login page helper can hold a Wi-Fi name, username and password.
