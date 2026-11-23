@@ -16,3 +16,12 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+
+# Smallest native code: this is the size profile recommended in the Tauri docs. It only changes how the Rust code is
+# compiled (smaller file, a bit more build time); the app behaves the same.
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
