@@ -4,9 +4,10 @@
   var $ = function (i) { return document.getElementById(i); };
   var SL = Wheel.slices, CP = ColorPicker, KEY = "playgloss-session-v3";
   var PU = [["x2","2x"],["x3","3x"],["shield","Shield"]];
-  var MODES = [["solo","Solo"],["1v1","1 vs 1"],["2v2","2 vs 2"]];
+  var MODES = [["solo","Solo"],["1v1","1 vs 1"],["2v2","2 vs 2"]]; // Custom is a rules switch (cfg.customOn) on top of these
   var STYLES = [["b","Bold"],["i","Italic"],["u","Underline"]];
   var cfg = defaults(), g = null, sd = null, used = Overlays.used, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
+  var customTab = "general", wheelKey = null; // customTab: the open tab of the Custom setup. wheelKey: which colors the wheel is drawn with
 
   // Online play state
   var online = false, oTab = "join", stopScan = null; // the fourth option, "Online": which view is open
@@ -47,24 +48,40 @@
 
   /* ---------- settings (names, text styles and colors) ---------- */
   function defaults() {
-    return { mode:"1v1", teams:[
+    return { mode:"1v1", customOn:false, teams:[
       { name:"Red", fmt:"", color:"#e03131", players:["Player 1", "Player 2"], pfmt:["", ""] },
       { name:"Blue", fmt:"", color:"#2f80ed", players:["Player 3", "Player 4"], pfmt:["", ""] }],
-      run:null }; // run: the mode picked in the Online host form ({ extreme, inf }); null means "as in Settings"
+      run:null, // the mode picked in the Online host form ({ extreme, inf, color }); null means "as in Settings"
+      custom:customOf(null) };
+  }
+  // The Custom setup: Game.cleanCustom (hearts, targetScore, time, levelColors) plus extreme, inf and color
+  // (color is what the host puts on the guests' screens; it is only used when hosting).
+  function customOf(c) {
+    var k = Game.cleanCustom(c);
+    k.extreme = !!(c && c.extreme); k.inf = !!(c && c.inf); k.color = c && c.color === "extreme" ? "extreme" : "default";
+    return k;
   }
   // The mode a game is played in. Local games always use Settings. The Online host form can pick its own.
-  function settingsRun() { var m = window.PGMode ? PGMode.get() : null; return { extreme:!!(m && m.extreme), inf:!!(m && m.infinite) }; }
-  function runOf() { return cfg.run ? { extreme:!!cfg.run.extreme, inf:!!cfg.run.inf } : settingsRun(); }
-  var runText = function (r) { return (r.extreme ? "Extreme" : "Default") + (r.inf ? ", Infinite" : ""); };
+  function settingsRun() { var m = window.PGMode ? PGMode.get() : null; return { extreme:!!(m && m.extreme), inf:!!(m && m.infinite), color:"default" }; }
+  function runOf() { return cfg.run ? { extreme:!!cfg.run.extreme, inf:!!cfg.run.inf, color:cfg.run.color || "default" } : settingsRun(); }
+  // The rules of a Custom game, in the shape the lobby, Game.create and the guests use.
+  function customRun() {
+    var c = cfg.custom;
+    return { extreme:c.extreme, inf:c.inf, color:c.color, custom:{ hearts:c.hearts, targetScore:c.targetScore, time:c.time, levelColors:c.levelColors } };
+  }
+  // The rules of a game on this device (a Custom game uses its own setup, the others use Settings).
+  function localRun() { return cfg.customOn ? customRun() : settingsRun(); }
   function okName(v, dflt) { v = clean(v); return v && !Filter.bad(v) ? v : dflt; }
   function apart(c) {
     if (CP.close(c.teams[0].color, c.teams[1].color)) c.teams[1].color = CP.close(c.teams[0].color, "#2f80ed") ? "#e03131" : "#2f80ed";
   }
   function fixCfg(c) {
     var d = defaults();
-    if (!c || !MODES.some(function (m) { return m[0] === c.mode; }) || !c.teams || c.teams.length !== 2) return d;
-    d.mode = c.mode;
-    if (c.run && typeof c.run === "object") d.run = { extreme:!!c.run.extreme, inf:!!c.run.inf };
+    var legacy = c && c.mode === "custom"; // saved before Custom became a switch: it was a custom 2 vs 2
+    if (!c || !(legacy || MODES.some(function (m) { return m[0] === c.mode; })) || !c.teams || c.teams.length !== 2) return d;
+    d.mode = legacy ? "2v2" : c.mode; d.customOn = legacy || !!c.customOn;
+    if (c.run && typeof c.run === "object") d.run = { extreme:!!c.run.extreme, inf:!!c.run.inf, color:c.run.color === "extreme" ? "extreme" : "default" };
+    d.custom = customOf(c.custom);
     d.teams.forEach(function (t, i) {
       var s = c.teams[i] || {};
       t.name = okName(s.name, t.name); t.fmt = fixFmt(s.fmt); t.color = CP.norm(s.color) || t.color;
@@ -129,7 +146,7 @@
   function drawSetup() {
     if (stopScan) stopScan();
     if (online && oTab === "host" && cfg.mode === "solo") cfg.mode = "1v1"; // a hosted game needs two sides
-    var box = $("setup-body"), solo = cfg.mode === "solo", modes = h("div", "row"), panels = h("div", "panels");
+    var box = $("setup-body"), solo = cfg.mode === "solo", isCustom = cfg.customOn, modes = h("div", "row"), panels = h("div", "panels");
     if (!solo) apart(cfg);
     pickers = []; box.textContent = "";
     modes.setAttribute("role", "group"); modes.setAttribute("aria-label", "Game mode");
@@ -144,19 +161,145 @@
     ob.onclick = function () { online = true; drawSetup(); save(); };
     modes.appendChild(ob);
     box.appendChild(modes);
+    if (!online) box.appendChild(customSwitch());
     $("start").parentNode.hidden = online; // "Start game" is for games on this device
     if (online) return drawOnline(box);
+    if (isCustom) return drawCustom(box, false);
     box.appendChild(modeNote());
     for (var ti = 0; ti < (solo ? 1 : 2); ti++) panels.appendChild(panel(ti));
     box.appendChild(panels);
+  }
+  // The Custom rules switch: Off uses Settings, On opens the Custom setup (works with Solo, 1 vs 1 and 2 vs 2).
+  function customSwitch() {
+    var row = h("div", "row"), b = h("button", "small", "Custom rules: " + (cfg.customOn ? "On" : "Off"));
+    b.type = "button"; b.setAttribute("aria-pressed", !!cfg.customOn);
+    b.onclick = function () { cfg.customOn = !cfg.customOn; drawSetup(); save(); };
+    row.appendChild(b);
+    return row;
   }
   // Which mode a game on this device will use, with a way to change it.
   function modeNote() {
     var p = h("p", "modeset"), a = h("a", "", "Settings");
     a.href = "settings.html";
-    p.appendChild(h("span", "note", "Mode: " + runText(settingsRun()) + ". Change it in "));
+    p.appendChild(h("span", "note", "Mode: " + View.runText(settingsRun()) + ". Change it in "));
     p.appendChild(a); p.appendChild(h("span", "note", "."));
     return p;
+  }
+
+  /* ---------- Custom mode configuration ---------- */
+  // The Custom setup, in tabs (General, Time, Colors, Teams) so it fits on a phone. The same box is used on this device
+  // (Play > Custom) and in the Online > Host a game form (online = true), where General also has the guests' Color.
+  function drawCustom(box, online) {
+    var c = cfg.custom, tabs = h("div", "ctabs"), views = h("div", "cviews"), btns = {}, vs = {};
+    var names = [["general", "General"], ["time", "Time"], ["colors", "Colors"], ["teams", "Teams"]];
+    tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "Custom settings");
+    function show(k) {
+      customTab = k;
+      names.forEach(function (t) {
+        var on = t[0] === k;
+        vs[t[0]].hidden = !on; btns[t[0]].setAttribute("aria-selected", on); btns[t[0]].tabIndex = on ? 0 : -1;
+      });
+    }
+    names.forEach(function (t, i) {
+      var b = h("button", "ctab", t[1]); b.type = "button"; b.id = "ctab-" + t[0];
+      b.setAttribute("role", "tab"); b.setAttribute("aria-controls", "cview-" + t[0]);
+      b.onclick = function () { show(t[0]); };
+      b.onkeydown = function (e) { // arrow keys move between the tabs
+        var d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!d) return;
+        var n = names[(i + d + names.length) % names.length][0];
+        show(n); btns[n].focus(); e.preventDefault();
+      };
+      tabs.appendChild(b); btns[t[0]] = b;
+      var v = h("div", "cview"); v.id = "cview-" + t[0]; v.setAttribute("role", "tabpanel"); v.setAttribute("aria-labelledby", b.id);
+      vs[t[0]] = v; views.appendChild(v);
+    });
+    box.appendChild(tabs); box.appendChild(views);
+
+    // two-button choice (Default / Extreme, Off / On); picking one redraws so the dependent fields update
+    function choice(parent, label, list, isOn, pick) {
+      var lab = h("span", "setlabel", label), row = h("div", "row");
+      lab.id = "cc-" + label.replace(/\W+/g, "-").toLowerCase();
+      row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", lab.id);
+      list.forEach(function (m) {
+        var x = h("button", "small", m[1]); x.type = "button"; x.setAttribute("aria-pressed", isOn(m[0]));
+        x.onclick = function () { pick(m[0]); drawSetup(); save(); };
+        row.appendChild(x);
+      });
+      parent.appendChild(lab); parent.appendChild(row);
+    }
+    // a slider with its value shown next to the label (works with touch, no typing)
+    function slider(parent, label, min, max, step, val, unit, set) {
+      var w = h("div", "field slider"), top = h("div", "sliderhead"), out = h("output", "sliderval"), r = h("input");
+      r.type = "range"; r.min = min; r.max = max; r.step = step; r.value = val; r.setAttribute("aria-label", label);
+      var paint = function () { out.textContent = r.value + (unit ? " " + unit : ""); r.setAttribute("aria-valuetext", out.textContent); };
+      r.oninput = function () { set(Number(r.value)); paint(); save(); };
+      top.appendChild(h("span", "flabel", label)); top.appendChild(out); w.appendChild(top); w.appendChild(r); paint();
+      parent.appendChild(w);
+    }
+
+    // General: modes, Infinite, hearts (Infinite on) or target score (Infinite off)
+    var gen = vs.general;
+    choice(gen, "Mode", [["default", "Default"], ["extreme", "Extreme"]], function (k) { return c.extreme === (k === "extreme"); }, function (k) { c.extreme = k === "extreme"; });
+    choice(gen, "Infinite", [[false, "Off"], [true, "On"]], function (k) { return c.inf === k; }, function (k) { c.inf = k; });
+    if (c.inf) slider(gen, "Hearts per player", 1, 10, 1, c.hearts, "", function (v) { c.hearts = v; });
+    else slider(gen, "Target score", 100, 1000, 50, c.targetScore, "points", function (v) { c.targetScore = v; });
+    gen.appendChild(h("p", "note", c.inf
+      ? "Infinite: no target score. A wrong answer or time up costs a heart, and a player with no hearts is out."
+      : "The first side to reach the target score wins (the round is finished first, as in the other modes)."));
+    gen.appendChild(h("p", "note", "Extreme flips how often the levels come up, so Impossible comes as often as Very Easy does in Default."));
+    if (online) {
+      choice(gen, "Color (guests)", [["default", "Default"], ["extreme", "Extreme"]], function (k) { return c.color === k; }, function (k) { c.color = k; });
+      gen.appendChild(h("p", "note", "Default: guests keep their own theme. Extreme: all guests see the Extreme theme (dark red). Your own theme is never affected, and guests can still switch to light."));
+    }
+
+    // Time: how long a question lasts, Very Easy (longest) to Impossible (shortest)
+    var tim = vs.time, grid = h("div", "tgrid");
+    tim.appendChild(h("h3", "", "Time to answer"));
+    tim.appendChild(h("p", "note", "Very Easy gives the most time to answer and Impossible the least. Normal is the standard game."));
+    grid.setAttribute("role", "group"); grid.setAttribute("aria-label", "Time to answer");
+    Game.TIMES.forEach(function (t) {
+      var x = h("button", "small", t[1]); x.type = "button"; x.setAttribute("aria-pressed", c.time === t[0]);
+      x.onclick = function () { c.time = t[0]; drawSetup(); save(); };
+      grid.appendChild(x);
+    });
+    tim.appendChild(grid);
+    var tb = h("div", "tablewrap"), tt = h("table"), tr = h("tr");
+    ["Level", "Standard", "Your game"].forEach(function (x) { tr.appendChild(h("th", "", x)); });
+    tt.appendChild(h("thead")).appendChild(tr);
+    var body = h("tbody");
+    SL.slice(0, 8).forEach(function (lv) {
+      var row = h("tr");
+      row.appendChild(h("td", "", lv.name)); row.appendChild(h("td", "", lv.time + " s"));
+      row.appendChild(h("td", "", Game.seconds({ custom:{ time:c.time } }, lv) + " s"));
+      body.appendChild(row);
+    });
+    tt.appendChild(body); tb.appendChild(tt); tim.appendChild(tb);
+
+    // Colors: one color for each level slice of the wheel (looks only; the odds, points and time stay the same)
+    var col = vs.colors;
+    col.appendChild(h("h3", "", "Difficulty colors"));
+    col.appendChild(h("p", "note", "These are the colors of the level slices on the wheel. They change the look only, not the odds, points or time."));
+    SL.slice(0, 8).forEach(function (lv) {
+      var d = h("details", "lvcolor"), sm = h("summary"), chip = h("span", "cp-chip"), cur = c.levelColors[lv.id] || lv.color;
+      chip.style.backgroundColor = cur;
+      sm.appendChild(chip); sm.appendChild(h("span", "", lv.name)); d.appendChild(sm);
+      var pk = CP.create({ value:cur, onChange:function (hex) { c.levelColors[lv.id] = hex; chip.style.backgroundColor = hex; reset.disabled = false; save(); } });
+      d.appendChild(pk.el); col.appendChild(d);
+    });
+    var reset = h("button", "small", "Reset to default colors"); reset.type = "button";
+    reset.disabled = !Object.keys(c.levelColors).length;
+    reset.onclick = function () { c.levelColors = {}; drawSetup(); save(); };
+    reset.dataset.role = "reset";
+    col.appendChild(h("div", "row")).appendChild(reset);
+
+    // Teams: the sides of the chosen mode (one for Solo, two for 1 vs 1, two teams of two for 2 vs 2)
+    var tm2 = vs.teams, panels = h("div", "panels");
+    tm2.appendChild(h("p", "note", "Custom rules are played as " + (cfg.mode === "solo" ? "Solo." : cfg.mode === "1v1" ? "1 vs 1." : "2 vs 2: two teams of two.")));
+    for (var ti = 0; ti < (cfg.mode === "solo" ? 1 : 2); ti++) panels.appendChild(panel(ti));
+    tm2.appendChild(panels);
+
+    show(names.some(function (t) { return t[0] === customTab; }) ? customTab : "general");
   }
 
   /* ---------- the "Online" option: host a game, or join one ---------- */
@@ -180,16 +323,20 @@
     }
     var sides = h("div", "row"), panels = h("div", "panels");
     sides.setAttribute("role", "group"); sides.setAttribute("aria-label", "Game mode");
-    MODES.slice(1).forEach(function (m) {
+    MODES.slice(1).forEach(function (m) { // Solo is not offered online
       var b = h("button", "small", m[1]); b.type = "button";
       b.setAttribute("aria-pressed", cfg.mode === m[0]);
       b.onclick = function () { cfg.mode = m[0]; drawSetup(); save(); };
       sides.appendChild(b);
     });
     box.appendChild(sides);
-    box.appendChild(modesBox());
-    for (var ti = 0; ti < 2; ti++) panels.appendChild(panel(ti));
-    box.appendChild(panels);
+    box.appendChild(customSwitch());
+    if (cfg.customOn) drawCustom(box, true); // the Custom setup has its own Modes, Time, Colors and Teams
+    else {
+      box.appendChild(modesBox());
+      for (var ti = 0; ti < 2; ti++) panels.appendChild(panel(ti));
+      box.appendChild(panels);
+    }
     var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
     hostBtn.onclick = startHosting;
     box.appendChild(h("div", "row")).appendChild(hostBtn);
@@ -205,7 +352,7 @@
     [["default", "Default"], ["extreme", "Extreme"]].forEach(function (m) {
       var x = h("button", "small", m[1]); x.type = "button";
       x.setAttribute("aria-pressed", r.extreme === (m[0] === "extreme"));
-      x.onclick = function () { cfg.run = { extreme:m[0] === "extreme", inf:runOf().inf }; drawSetup(); save(); };
+      x.onclick = function () { cfg.run = { extreme:m[0] === "extreme", inf:runOf().inf, color:runOf().color }; drawSetup(); save(); };
       row.appendChild(x);
     });
     b.appendChild(row);
@@ -214,10 +361,24 @@
     [[false, "Off"], [true, "On"]].forEach(function (m) {
       var x = h("button", "small", m[1]); x.type = "button";
       x.setAttribute("aria-pressed", r.inf === m[0]);
-      x.onclick = function () { cfg.run = { extreme:runOf().extreme, inf:m[0] }; drawSetup(); save(); };
+      x.onclick = function () { cfg.run = { extreme:runOf().extreme, inf:m[0], color:runOf().color }; drawSetup(); save(); };
       onoff.appendChild(x);
     });
     set.appendChild(lab); set.appendChild(onoff); b.appendChild(set);
+
+    // Color override for guests
+    var colorRow = h("div", "row"), colorSet = h("div", "setrow"), colorLab = h("span", "setlabel", "Color (guests)");
+    colorRow.setAttribute("role", "group"); colorRow.setAttribute("aria-labelledby", "color-label");
+    colorLab.id = "color-label";
+    [["default", "Default"], ["extreme", "Extreme"]].forEach(function (m) {
+      var x = h("button", "small", m[1]); x.type = "button";
+      x.setAttribute("aria-pressed", (r.color || "default") === m[0]);
+      x.onclick = function () { cfg.run = { extreme:runOf().extreme, inf:runOf().inf, color:m[0] }; drawSetup(); save(); };
+      colorRow.appendChild(x);
+    });
+    colorSet.appendChild(colorLab); colorSet.appendChild(colorRow); b.appendChild(colorSet);
+    b.appendChild(h("p", "note", "Default: guests keep their own theme. Extreme: all guests see the Extreme theme (dark red). The host's theme is never affected. Guests can still toggle light/dark."));
+
     b.appendChild(h("p", "note", "Extreme flips how often the levels come up, so Impossible comes as often as Very Easy does in Default. Points and time per level stay the same."));
     b.appendChild(h("p", "note", "Infinite: no 100 points goal. Everyone has 3 hearts and loses one for each wrong answer or time up. Hosting uses the choice you make here, not the one in Settings."));
     return b;
@@ -317,7 +478,7 @@
     return wrap;
   }
   function panel(ti) {
-    var t = cfg.teams[ti], solo = cfg.mode === "solo", two = cfg.mode === "2v2", p = h("section", "panel");
+    var t = cfg.teams[ti], solo = cfg.mode === "solo", two = cfg.mode === "2v2" || cfg.mode === "custom", p = h("section", "panel");
     p.appendChild(h("h3", "", solo ? "You" : two ? "Team " + (ti + 1) : "Player " + (ti + 1)));
     p.appendChild(field(two ? "Team name" : "Name", t.name, t.fmt, function (v) { t.name = v; }, function (f) { t.fmt = f; }));
     if (two) t.players.forEach(function (n, k) {
@@ -334,11 +495,15 @@
   }
   function warn() { var d = $("warn"); if (!d.open) d.showModal(); }
 
-  var startNote = function (game) { return game.inf ? "Infinite: everyone has 3 hearts. A wrong answer or time up costs one heart." : ""; };
+  var startNote = function (game) {
+    if (game.inf) return "Infinite: everyone has " + Game.heartsOf(game) + " hearts. A wrong answer or time up costs one heart.";
+    if (game.customOn) return game.mode === "solo" ? "Reach " + Game.targetOf(game) + " points." : "The first side to reach " + Game.targetOf(game) + " points wins.";
+    return "";
+  };
 
   /* ---------- start local game (non-hosting) ---------- */
   function start() {
-    var solo = cfg.mode === "solo", two = cfg.mode === "2v2", teams = [], bad = false, D = defaults();
+    var solo = cfg.mode === "solo", two = cfg.mode === "2v2" || cfg.mode === "custom", teams = [], bad = false, D = defaults();
     for (var ti = 0; ti < (solo ? 1 : 2); ti++) {
       var t = cfg.teams[ti], name = clean(t.name) || D.teams[ti].name;
       var players = two ? t.players.map(function (p, k) { return clean(p) || D.teams[ti].players[k]; }) : [name];
@@ -348,8 +513,8 @@
     if (bad) return warn();
     var go = function (order) {
       resetFlow();
-      var run = settingsRun();
-      g = Game.create({ mode:cfg.mode, teams:teams, extreme:run.extreme, infinite:run.inf }, order);
+      var run = localRun();
+      g = Game.create({ mode:cfg.mode, teams:teams, extreme:run.extreme, infinite:run.inf, customOn:!!run.custom, custom:run.custom }, order);
       sd = null; used = {}; busy = false; tab = "game"; say(startNote(g));
       $("setup").hidden = true; $("game").hidden = false; render();
     };
@@ -367,14 +532,15 @@
   function startHosting() {
     if (stopping) { alert("Still stopping, please wait..."); return; }
     // Build seat config from current setup
-    // Solo and 1v1 seats are named after the side (one player per side); only 2v2 uses the individual player names.
+    // Solo and 1v1 seats are named after the side (one player per side); 2v2 and Custom use the individual player names.
     var seats = [];
     if (cfg.mode === "solo") seats.push({ name: cfg.teams[0].name, open: false });
     else if (cfg.mode === "1v1") cfg.teams.forEach(function (t) { seats.push({ name: t.name, open: false }); });
     else cfg.teams.forEach(function (t) { t.players.forEach(function (n) { seats.push({ name: n, open: false }); }); });
     // For 1v1 and 2v2, mark seats as "open for guest" if user wants (we'll add UI for this in lobby)
-    hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams, run: runOf() };
-    conn = { type:"password", ssid:"", pass:"", show:false };
+    var run = cfg.customOn ? customRun() : runOf();
+    hostCfg = { seats: seats, mode: cfg.mode, teams: cfg.teams, run: JSON.parse(JSON.stringify(run)) }; // a copy: the setup form can change later
+    conn = { type:"password", ssid:"", pass:"", show:false, username:"", loginpass:"" };
 
     // Load the QR module dynamically; the lobby waits for it so the code is drawn on the first try.
     var qrReady = qrModule ? Promise.resolve() : import("./online/lean-qr.js")
@@ -477,6 +643,27 @@
        "Share the link as usual and check that a guest can connect.",
        "If it does not work, switch on your phone's hotspot (Wi-Fi sharing), connect everybody to it, then press Stop hosting and host again."].forEach(function (x) { ol.appendChild(h("li", "", x)); });
       box.appendChild(ol);
+
+      // Optional login helper: the Wi-Fi name and the username and password of the login page, so the host can read
+      // them off this screen (they are often different from a home Wi-Fi: at a school the username can be an ID such
+      // as ss12345). Memory only. They are not sent to guests and not part of any QR code or link.
+      var loginWrap = h("div", "box inner");
+      loginWrap.appendChild(h("h4", "", "Login helper (optional)"));
+      var lfield = function (label, key, max, type) {
+        var w = h("div", "field"), i = h("input");
+        i.type = type || "text"; i.maxLength = max; i.value = conn[key] || ""; i.autocomplete = "off"; i.spellcheck = false; i.setAttribute("aria-label", label);
+        i.oninput = function () { conn[key] = i.value; };
+        w.appendChild(h("span", "flabel", label)); w.appendChild(i);
+        return w;
+      };
+      loginWrap.appendChild(lfield("Wi-Fi name (e.g. SchoolWiFi)", "ssid", 32));
+      loginWrap.appendChild(lfield("Username / ID (e.g. ssxxxxx, where xxxxx is your own number)", "username", 64));
+      loginWrap.appendChild(lfield("Password (some networks use the username again)", "loginpass", 64, conn.show ? "text" : "password"));
+      var lshow = h("button", "small", conn.show ? "Hide password" : "Show password"); lshow.type = "button"; lshow.setAttribute("aria-pressed", conn.show);
+      lshow.onclick = function () { conn.show = !conn.show; drawConn(); };
+      loginWrap.appendChild(h("div", "row")).appendChild(lshow);
+      loginWrap.appendChild(h("p", "note", "These are only here so you can read them on this screen. They are not saved, not sent to guests and not part of any QR code or link. Guests sign in with their own login."));
+      box.appendChild(loginWrap);
       return;
     }
 
@@ -521,7 +708,7 @@
   function renderLobby(seats, phase) {
     if (!host || !host.session || !hostCfg) return;
     var box = $("lobby-seats"), sess = host.session;
-    $("lobby-mode").textContent = "Mode: " + runText(hostCfg.run);
+    $("lobby-mode").textContent = "Mode: " + View.runText(hostCfg.run);
     box.textContent = "";
     seats.forEach(function (s, i) {
       // Session seats have no "taken" flag (that only exists in the message sent to guests), so ask the session.
@@ -634,7 +821,7 @@
     var sessionSeats = host.session.seats;
     var nameOf = function (i, dflt) { return sessionSeats[i] ? sessionSeats[i].name : dflt; };
     var teams = hostCfg.teams.map(function (t, ti) {
-      if (hostCfg.mode === "2v2") {
+      if (hostCfg.mode === "2v2" || hostCfg.mode === "custom") {
         return { name: t.name, fmt: t.fmt, color: t.color,
           players: [nameOf(ti * 2, t.players[0]), nameOf(ti * 2 + 1, t.players[1])], pfmt: t.pfmt.slice() };
       }
@@ -643,10 +830,10 @@
     });
     if (hostCfg.mode === "solo") teams = teams.slice(0, 1);
     // Determine turn order (draw)
-    var solo = hostCfg.mode === "solo", two = hostCfg.mode === "2v2";
+    var solo = hostCfg.mode === "solo", two = hostCfg.mode === "2v2" || hostCfg.mode === "custom";
     var go = function (order) {
       resetFlow();
-      g = Game.create({ mode: hostCfg.mode, teams: teams, extreme: hostCfg.run.extreme, infinite: hostCfg.run.inf }, order);
+      g = Game.create({ mode: hostCfg.mode, teams: teams, extreme: hostCfg.run.extreme, infinite: hostCfg.run.inf, customOn: !!hostCfg.run.custom, custom: hostCfg.run.custom }, order);
       sd = null; used = {}; busy = false; tab = "game"; say(startNote(g));
       host.startGame();
       $("lobby").hidden = true; $("game").hidden = false;
@@ -725,11 +912,17 @@
   }
 
   /* ---------- wheel ---------- */
+  // Draws the wheel with the level colors of the game on screen (a Custom game can have its own). The drawing is only
+  // redone when the colors change, so a spin is never interrupted. Where the wheel is turning is kept on #wheel itself.
   function build() {
-    var n = SL.length, a = 360 / n, R = 96;
+    var colors = g && g.custom ? g.custom.levelColors : null, key = JSON.stringify(colors || {});
+    if (key === wheelKey) return;
+    wheelKey = key;
+    var slices = Wheel.getSlices(colors);
+    var n = slices.length, a = 360 / n, R = 96;
     var pt = function (d, r) { var t = (d - 90) * Math.PI / 180; return [100 + r * Math.cos(t), 100 + r * Math.sin(t)].map(function (v) { return v.toFixed(2); }); };
     var s = '<svg viewBox="0 0 200 200" aria-hidden="true">';
-    SL.forEach(function (c, i) {
+    slices.forEach(function (c, i) {
       var p1 = pt(i * a, R), p2 = pt((i + 1) * a, R), m = (i + .5) * a, t = pt(m, 58);
       s += '<path d="M100 100L' + p1[0] + " " + p1[1] + "A" + R + " " + R + " 0 0 1 " + p2[0] + " " + p2[1] + 'Z" fill="' + c.color + '" stroke="var(--fg)" stroke-width=".6"/>' +
         '<text x="' + t[0] + '" y="' + t[1] + '" transform="rotate(' + (m > 180 ? m + 90 : m - 90) + " " + t[0] + " " + t[1] + ')" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="' + c.ink + '">' + c.label + "</text>";
@@ -740,6 +933,7 @@
   /* ---------- drawing the game (uses View.paint) ---------- */
   function render() {
     $("mtabs").hidden = false; // render() only runs while the game is on screen
+    build();
     var acts = function (pi) { return idle() && !g.over && !sd && g.turn === pi && !g.players[pi].out && !remote(pi); };
     var shownTab = View.paint(g, Game, { tab: tab, sd: !!sd, acts: acts });
     tab = shownTab;
@@ -766,9 +960,12 @@
     later(function () { landed(res); }, rm ? 250 : 4100);
   }
 
+  // The level as it is played in this game: the same, with the seconds of the Custom "Time to answer" (if any).
+  function withTime(lv) { return Object.assign({}, lv, { time: Game.seconds(g, lv) }); }
+
   function landed(res) {
     if (sd) return sdLand(res);
-    if (res.points !== undefined) return reveal(res);
+    if (res.points !== undefined) return reveal(withTime(res));
     if (res.id === "egg") { say(who() + " hit the Easter egg!"); return eggFlow(false, finish); }
     Game.grant(g, res.id);
     say(who() + " got " + res.name + (res.id === "free" ? ": +5 points." : ". Turn used."));
@@ -810,7 +1007,7 @@
     var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv, g.extreme);
     var announce = function (ok, k, pts) {
       say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "." +
-        (g.inf && !ok ? " " + p.name + " loses a heart (" + p.hearts + " left)." : ""));
+        (g.inf && !ok ? " " + p.name + " loses a heart (" + p.hearts + " left)." : "")); // the heart is already taken off when this runs
     };
     say(p.name + " is answering...");
     if (!remote(seat)) {
@@ -868,6 +1065,7 @@
   }
 
   /* ---------- resign and draw ---------- */
+  var teamsOfTwo = function () { return g.mode === "2v2" || g.mode === "custom"; };
   // skipAsk: a guest already confirmed on their own screen.
   function doResign(skipAsk) {
     var p = g.players[g.turn];
@@ -877,7 +1075,7 @@
       after(r);
     };
     if (skipAsk) return go();
-    Overlays.ask(p.name + ", resign the game?" + (g.mode === "2v2" ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"]).then(function (k) { if (k === 0) go(); });
+    Overlays.ask(p.name + ", resign the game?" + (teamsOfTwo() ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"]).then(function (k) { if (k === 0) go(); });
   }
   // The offer goes to the other side only: a dialog on this screen if the host plays that player, otherwise on the
   // guest's own screen. Nothing else can be pressed while it is open.
@@ -892,13 +1090,13 @@
     };
     g.offered = true; offering = true;
     S.drawOffer = { targetSeat: target, fromName: p.name };
-    say(p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ".");
+    say(p.name + " offers a draw" + (teamsOfTwo() ? " for everyone" : "") + ".");
     render();
     if (remote(target)) {
       drawP = { seat: target, resolve: reply };
       t = later(function () { reply(false); }, 60000);
     } else {
-      Overlays.ask(o.name + ", " + p.name + " offers a draw" + (g.mode === "2v2" ? " for everyone" : "") + ". Accept?", ["Accept draw", "Decline"]).then(function (k) { reply(k === 0); });
+      Overlays.ask(o.name + ", " + p.name + " offers a draw" + (teamsOfTwo() ? " for everyone" : "") + ". Accept?", ["Accept draw", "Decline"]).then(function (k) { reply(k === 0); });
     }
   }
 

@@ -1,5 +1,5 @@
 // Rules only (no visuals). MIT License (see LICENSE).
-// Modes: "solo", "1v1", "2v2". Teams are 0 and 1; players are numbered in order (team 0 first).
+// Modes: "solo", "1v1", "2v2", "custom". Teams are 0 and 1; players are numbered in order (team 0 first).
 // Power-ups (2x, 3x, Shield) are chosen AFTER the difficulty is shown and BEFORE the word is shown.
 // Only one can be active per question. Whatever is armed is used up, right or wrong.
 //
@@ -10,21 +10,55 @@
 //              Solo: the game ends when the hearts are gone. 1 vs 1 and 2 vs 2: when every player of one side is
 //              out, the other side plays on until it passes the score the first side ended with (then it wins) or
 //              loses its own hearts (then the higher score wins; the same score is a draw).
+// 0.1.5 adds the "custom" mode (two teams of two, like 2 vs 2) with its own settings, stored in g.custom:
+//   hearts      1 to 10, only used when Infinite is on (every other mode has 3)
+//   targetScore 100 to 1000 in steps of 50, only used when Infinite is off (every other mode has 100)
+//   time        how long a question lasts: "very-easy" (longest) to "impossible" (shortest), see TIMES below
+//   levelColors { levelId: "#rrggbb" } colors of the eight level slices on the wheel (looks only)
+// Hearts exist if and only if Infinite is on, in every mode.
 var Game = (function () {
   var MULT = { x2:2, x3:3, shield:1 };
-  var HEARTS = 3;
+  var HEARTS = 3, TARGET = 100;
+  var LEVELS = ["very-easy", "easy", "normal", "hard", "very-hard", "extremely-hard", "insanely-hard", "impossible"];
+  // Time to answer: every base time of the wheel is multiplied by this. "normal" is the standard game.
+  var TIMES = [["very-easy", "Very Easy", 2], ["easy", "Easy", 1.5], ["normal", "Normal", 1], ["hard", "Hard", .75],
+    ["very-hard", "Very Hard", .6], ["extremely-hard", "Extremely Hard", .5], ["insanely-hard", "Insanely Hard", .4], ["impossible", "Impossible", .25]];
   var cur = function (g) { return g.players[g.turn]; };
 
-  // cfg: { mode, teams:[{ name, fmt, color, players:[names], pfmt:[text styles] }], extreme, infinite }.
+  // Turns anything (a saved game, a form, a message) into a valid custom setup.
+  function cleanCustom(c) {
+    c = c && typeof c === "object" ? c : {};
+    var n = function (v, lo, hi, step, d) { v = Math.round(Number(v) / step) * step; return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+    var colors = {};
+    if (c.levelColors && typeof c.levelColors === "object") LEVELS.forEach(function (id) {
+      var v = c.levelColors[id];
+      if (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v)) colors[id] = v.toLowerCase();
+    });
+    var time = TIMES.some(function (t) { return t[0] === c.time; }) ? c.time : "normal";
+    return { hearts:n(c.hearts, 1, 10, 1, HEARTS), targetScore:n(c.targetScore, 100, 1000, 50, TARGET), time:time, levelColors:colors };
+  }
+  // Seconds for a question of this level in this game.
+  function seconds(g, lv) {
+    var t = TIMES.filter(function (x) { return x[0] === (g.custom && g.custom.time); })[0];
+    return Math.max(3, Math.round(lv.time * (t ? t[2] : 1)));
+  }
+  var targetOf = function (g) { return g.custom && g.custom.targetScore ? g.custom.targetScore : TARGET; };
+  var heartsOf = function (g) { return g.custom && g.custom.hearts ? g.custom.hearts : HEARTS; };
+
+  // cfg: { mode, teams:[{ name, fmt, color, players:[names], pfmt:[text styles] }], extreme, infinite, customOn, custom }.
+  // custom: see cleanCustom. When customOn is true (or mode is the old "custom"), the game uses Custom rules (g.customOn).
   // order: player numbers in play order.
   // A text style (fmt) is any of "b" (bold), "i" (italic) and "u" (underline).
   function create(cfg, order) {
-    var g = { mode:cfg.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0,
-      offered:false, over:false, winner:null, reason:"", extreme:!!cfg.extreme, inf:!!cfg.infinite };
+    // Custom rules are a switch on any structure (solo, 1v1, 2v2). The old "custom" mode is a custom 2v2.
+    var customOn = cfg.mode === "custom" || !!cfg.customOn, mode = cfg.mode === "custom" ? "2v2" : cfg.mode;
+    var custom = customOn ? cleanCustom(cfg.custom) : { hearts:HEARTS, targetScore:TARGET, time:"normal", levelColors:{} };
+    var g = { mode:mode, customOn:customOn, teams:[], players:[], order:[], pos:0, turn:0, turns:0,
+      offered:false, over:false, winner:null, reason:"", extreme:!!cfg.extreme, inf:!!cfg.infinite, custom:custom };
     cfg.teams.forEach(function (t, ti) {
       var ids = t.players.map(function (name, k) {
         g.players.push({ name:name, fmt:(t.pfmt && t.pfmt[k]) || "", team:ti, score:0, inv:{ x2:0, x3:0, shield:0 }, armed:null, out:false });
-        if (cfg.infinite) g.players[g.players.length - 1].hearts = HEARTS;
+        if (cfg.infinite) g.players[g.players.length - 1].hearts = custom.hearts;
         return g.players.length - 1;
       });
       g.teams.push({ name:t.name, fmt:t.fmt || "", color:t.color, players:ids, out:false });
@@ -55,12 +89,13 @@ var Game = (function () {
     }
     return false;
   }
-  // At the end of a round: someone at 100 or more? Then the higher team total wins; a tie goes to sudden death.
+  // At the end of a round: someone at targetScore or more? Then the higher team total wins; a tie goes to sudden death.
   function roundEnd(g) {
+    var target = targetOf(g);
     var a = teamScore(g, 0), b = teamScore(g, 1);
-    if (Math.max(a, b) < 100) return "next";
+    if (Math.max(a, b) < target) return "next";
     if (a === b) return "sudden";
-    g.over = true; g.winner = a > b ? 0 : 1; g.reason = "higher score at 100 or more";
+    g.over = true; g.winner = a > b ? 0 : 1; g.reason = "higher score at " + target + " or more";
     return "win";
   }
 
@@ -127,8 +162,9 @@ var Game = (function () {
       return g.teams.some(function (t) { return t.out; }) ? (infCheck(g) || "next") : "next";
     }
     if (g.mode === "solo") {
-      if (cur(g).score < 100) return "next";
-      g.over = true; g.winner = 0; g.reason = "reached 100 points in " + g.turns + " turns";
+      var target = targetOf(g);
+      if (cur(g).score < target) return "next";
+      g.over = true; g.winner = 0; g.reason = "reached " + target + " points in " + g.turns + " turns";
       return "win";
     }
     return advance(g) ? roundEnd(g) : "next";
@@ -202,5 +238,6 @@ var Game = (function () {
   }
 
   return { create:create, teamScore:teamScore, rep:rep, grant:grant, arm:arm, answer:answer,
-    endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder, drawFirst:drawFirst };
+    endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder, drawFirst:drawFirst,
+    cleanCustom:cleanCustom, seconds:seconds, targetOf:targetOf, heartsOf:heartsOf, TIMES:TIMES, LEVELS:LEVELS };
 })();

@@ -48,20 +48,22 @@ var Overlays = (function () {
   }
 
   // Question overlay on this screen: shows word and shuffled options. pre is a question made by pick() (a new one
-  // is picked when it is missing). Returns a Promise that resolves with the result.
+  // is picked when it is missing). lv.time is the number of seconds in this game (ui.js has already applied a Custom game's Time to answer).
+  // Returns a Promise that resolves with the result.
   function question(g, lv, pre) {
     return new Promise(function (resolve) {
       var q = pre || pick(lv, g.extreme), w = { word: q.word }, opts = q.opts;
       var boost = g.players[g.turn].armed, finished = false;
+      var secs = lv.time;
       $("q-level").textContent = lv.name + ", " + pl(lv.points, "point") + (boost ? ", " + (boost === "shield" ? "Shield" : boost.replace("x", "") + "x") + " active" : "");
       $("q-word").textContent = w.word;
       var box = $("q-opts"); box.textContent = "";
       opts.forEach(function (o, k) { var b = h("button", "opt", o.t); b.onclick = function () { done(k); }; box.appendChild(b); });
       $("q-next").hidden = true; $("q").hidden = false;
-      var end = Date.now() + lv.time * 1000;
+      var end = Date.now() + secs * 1000;
       var tm = setInterval(function () {
         var left = Math.max(0, end - Date.now());
-        $("bar").style.width = (left / (lv.time * 1000) * 100) + "%";
+        $("bar").style.width = (left / (secs * 1000) * 100) + "%";
         $("secs").textContent = Math.ceil(left / 1000) + "s";
         if (!left) done(null);
       }, 100);

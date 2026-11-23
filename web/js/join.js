@@ -112,7 +112,7 @@
 
   var mySeat = -1, myToken = null, myName = "", phase = "lobby", g = null, sd = false, tab = "game";
   var busy = false, qNow = -1, qDone = false, qTimer = null, spinN = 0, rot = 0, dlgKind = null;
-  var away = false, rules = { extreme:false, inf:false }; // rules: the mode the host chose, from the lobby message
+  var away = false, rules = Session.cleanRules(null), wheelKey = null; // rules: the mode the host chose, from the lobby message
 
   function show(id) {
     ["join", "lobby", "game"].forEach(function (x) { $(x).hidden = x !== id; });
@@ -127,13 +127,20 @@
     $("join-status").textContent = text;
   }
 
+  // The host can put the Extreme look on every guest. It is only shown here and never saved on this device: PGTheme.force
+  // keeps it for as long as the theme is dark (Light shows the light look, Dark brings Extreme back).
+  // Leaving the host's game gives the guest's own look back.
+  function applyGuestColor(on) {
+    if (typeof PGTheme !== "undefined" && PGTheme.force) PGTheme.force(on && rules.color === "extreme" ? "extreme" : null);
+  }
+
   function handleEvent(e) {
     if (e.t === "sent") {
       $("join-status").textContent = "Waiting for the host to let you in...";
     } else if (e.t === "connfail") {
       backToJoin("Could not reach the host (" + e.why + "). Check that you are on the same Wi-Fi and try again. If that Wi-Fi shows a login page (school, hotel, cafe), sign in there first.");
     } else if (e.t === "lost") {
-      mySeat = -1; myToken = null; clearGame();
+      mySeat = -1; myToken = null; clearGame(); applyGuestColor(false);
       backToJoin(e.why + " You can try to join again.");
     } else if (e.t === "approved") {
       $("join-status").textContent = "You are in! Waiting for a seat...";
@@ -154,14 +161,17 @@
       phase = e.phase;
       if (typeof e.you === "number") mySeat = e.you;
       rules = Session.cleanRules(e.rules);
+      applyGuestColor(true); // the host's color for guests (Default or Extreme)
       renderLobby(e.seats, e.you);
       if (phase === "game") show("game");
       else { clearGame(); show("lobby"); }
     } else if (e.t === "snap") {
       var ng = Session.cleanSnap(e.g, Filter);
-      if (ng) { g = ng; sd = !!e.sd; show("game"); renderGame(Session.cleanExtras(e)); }
+      if (ng) { g = ng; sd = !!e.sd; show("game");
+        buildWheel(g.custom.levelColors); // only redrawn when the colors are different
+        renderGame(Session.cleanExtras(e)); }
     } else if (e.t === "kick") {
-      transport.close(); clearGame();
+      transport.close(); clearGame(); applyGuestColor(false);
       backToJoin("Removed: " + (e.why || "No reason given"));
       mySeat = -1; myToken = null; away = false;
       try { sessionStorage.removeItem("pg-resume-" + hash); } catch (x) {}
@@ -184,8 +194,8 @@
   function renderLobby(seats, you) {
     var box = $("lobby-seats"), ml = $("lobby-mode");
     box.textContent = "";
-    ml.textContent = "Mode: " + (rules.extreme ? "Extreme" : "Default") + (rules.inf ? ", Infinite (3 hearts, no 100 points goal)" : "");
-    ml.hidden = !rules.extreme && !rules.inf;
+    ml.textContent = "Mode: " + View.runText(rules);
+    ml.hidden = false;
     seats.forEach(function (s, i) {
       var p = h("div", "panel"), taken = !!s.taken && you !== i; // the host sends name, open, taken and mine
       p.appendChild(h("h3", "", "Seat " + (i + 1) + (s.open ? " (open)" : "")));
@@ -244,18 +254,24 @@
     $("pu").hidden = true; $("egg").hidden = true; hideQuestion(); closeDlg(); busy = false; g = null;
   }
 
-  // Draw the wheel once (same drawing as the host page)
-  (function buildWheel() {
-    var SL = Wheel.slices, n = SL.length, a = 360 / n, R = 96;
+  // Draw the wheel (same drawing as the host page, with the level colors the host chose for a Custom game).
+  function buildWheel(levelColors) {
+    var key = JSON.stringify(levelColors || {});
+    if (key === wheelKey) return;
+    wheelKey = key;
+    var slices = Wheel.getSlices(levelColors);
+    var n = slices.length, a = 360 / n, R = 96;
     var pt = function (d, r) { var t = (d - 90) * Math.PI / 180; return [100 + r * Math.cos(t), 100 + r * Math.sin(t)].map(function (v) { return v.toFixed(2); }); };
     var s = '<svg viewBox="0 0 200 200" aria-hidden="true">';
-    SL.forEach(function (c, i) {
+    slices.forEach(function (c, i) {
       var p1 = pt(i * a, R), p2 = pt((i + 1) * a, R), m = (i + .5) * a, t = pt(m, 58);
       s += '<path d="M100 100L' + p1[0] + " " + p1[1] + "A" + R + " " + R + " 0 0 1 " + p2[0] + " " + p2[1] + 'Z" fill="' + c.color + '" stroke="var(--fg)" stroke-width=".6"/>' +
         '<text x="' + t[0] + '" y="' + t[1] + '" transform="rotate(' + (m > 180 ? m + 90 : m - 90) + " " + t[0] + " " + t[1] + ')" text-anchor="middle" dominant-baseline="central" font-size="6.5" fill="' + c.ink + '">' + c.label + "</text>";
     });
     $("wheel").innerHTML = s + "</svg>";
-  })();
+  }
+  // Initial build with default colors
+  buildWheel();
 
   // Same turning as the host's wheel: it keeps turning forward from where it stopped.
   function animateWheel(index) {
@@ -369,7 +385,7 @@
     var b = ev.target.closest && ev.target.closest("button[data-act]");
     if (!b || b.disabled || !g || +b.dataset.p !== mySeat || !acts(mySeat)) return;
     if (b.dataset.act === "draw") { b.disabled = true; guest.sendAction("draw"); }
-    else openDlg("resign", "Resign the game?" + (g.mode === "2v2" ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"], function (k) { if (k === 0) guest.sendAction("resign"); });
+    else openDlg("resign", "Resign the game?" + (g.mode === "2v2" || g.mode === "custom" ? " Your teammate can keep playing." : ""), ["Resign", "Cancel"], function (k) { if (k === 0) guest.sendAction("resign"); });
   });
 
   var fmt = function (n) { return n % 1 ? n.toFixed(1) : String(n); };
@@ -383,7 +399,7 @@
 
   // Reconnection handling: resume token when page regains focus
   window.addEventListener("focus", function () {
-    if (mySeat >= 0 && myToken) {
+    if (mySeat >= 0 && myToken && phase === "lobby") { // in a running game the host refuses a new "take"
       guest.session.say({ t: "take", seat: mySeat, name: myName, resume: myToken });
     }
   });

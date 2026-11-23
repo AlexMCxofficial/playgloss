@@ -41,6 +41,7 @@
 <li><strong>Solo</strong>: just you. Keep spinning until you reach 100 points. There is no other team, so no resign or draw, and the game tells you how many turns it took.</li>
 <li><strong>1 vs 1</strong>: two players take turns. Each has a card beside the wheel with their name, color, score and power-ups, and their own Offer draw and Resign buttons below it. A random draw decides who goes first.</li>
 <li><strong>2 vs 2</strong>: two teams of two. Every player has a card with their own score and power-ups. A Team Scoreboard above the wheel shows each team's combined score, and a leaderboard beside the wheel shows how much each player adds to their team. Read Turn order in 2 vs 2 below.</li>
+<li><strong>Custom</strong>: a fully configurable game mode. You choose the Extreme and Infinite switches, hearts per player (in Infinite mode), target score (in non-Infinite mode), time multipliers for each difficulty level, and custom colors for the wheel slices. Custom games use the 2 vs 2 team structure (two teams, two players each) and support all the same features. See Custom mode below.</li>
 <li><strong>Online</strong>: play 1 vs 1 or 2 vs 2 with people on the same Wi-Fi or network, each on their own device. See Online play below.</li>
 </ul>
 
@@ -95,7 +96,7 @@
 
 <h3>Winning</h3>
 <ul>
-<li>Solo: you win as soon as you reach 100 points.</li>
+<li>Solo: you win as soon as you reach 100 points (in Custom, your target score).</li>
 <li>1 vs 1 and 2 vs 2: when a team reaches 100 or more, the round is finished first, so everyone gets the same number of turns. The round ends after the last player in the turn order has played. Then the higher team score wins. In 2 vs 2 a team's score is its two players' scores added together.</li>
 <li>If the scores are tied, each team spins once more in sudden death (in 2 vs 2, the first remaining player of each team spins). The higher result wins, where a level counts as its points, Free 5 counts as 5 and other power-ups count as 0. A tie spins again.</li>
 </ul>
@@ -118,11 +119,24 @@
 <p>Choosing Extreme in Settings also switches the color to Extreme (dark red with a red accent). Choosing Default again puts your old look back, unless you changed it yourself. You can still use the Extreme color in Default mode, and the other way round.</p>
 
 <h3>Infinite mode</h3>
-<p>Infinite is a switch in Settings, under Modes, and it works with Default and Extreme. There is no 100 points goal. Every player has 3 hearts, and a wrong answer or running out of time costs one heart (a Shield still gives its points, but the heart is lost). A player with no hearts left is out and is skipped, like after resigning.</p>
+<p>Infinite is a switch in Settings, under Modes, and it works with Default and Extreme. There is no 100 points goal. Every player has 3 hearts (in Custom you choose 1 to 10), and a wrong answer or running out of time costs one heart (a Shield still gives its points, but the heart is lost). A player with no hearts left is out and is skipped, like after resigning.</p>
 <ul>
 <li>Solo: the game ends when your hearts are gone, and it shows your points and turns.</li>
 <li>1 vs 1 and 2 vs 2: when everyone on one side is out, the other side plays on. It wins as soon as it has a higher score than the side that is out. If it runs out of hearts first, the higher score wins, and the same score is a draw. There are no rounds and no sudden death. Offer draw is off once the other side is out, but Resign still works.</li>
 </ul>
+
+<h3>Custom mode</h3>
+<p>Custom mode lets you set up the rules yourself. Open the Play page and choose <strong>Custom</strong> (it sits just left of Online). The settings are in four tabs that fit on a phone or an iPad:</p>
+<ul>
+<li><strong>General</strong>: choose <strong>Default</strong> or <strong>Extreme</strong> (Extreme flips how often the levels come up) and switch <strong>Infinite</strong> on or off. With Infinite on, a slider sets the <strong>hearts per player</strong> (1 to 10) and there is no target score. With Infinite off, a slider sets the <strong>target score</strong> (100 to 1000, in steps of 50).</li>
+<li><strong>Time</strong>: the <strong>time to answer</strong>, from Very Easy (the most time) to Impossible (the least). Normal is the standard game. A table shows the seconds each level gets in your game.</li>
+<li><strong>Colors</strong>: the color of each of the eight levels on the wheel. This changes the look only, not the odds, points or time. <strong>Reset to default colors</strong> brings the originals back.</li>
+<li><strong>Teams</strong>: names, text styles and colors. Custom is played by two teams of two, like 2 vs 2, with the same turn order, draw and resign rules.</li>
+</ul>
+<p>Custom works offline and online: host a Custom game from <strong>Online</strong> then <strong>Host a game</strong> in the app, and guests see your hearts or target score, your wheel colors and your time to answer.</p>
+
+<h3>Progress bars</h3>
+<p>The bar above each team or player name is a progress bar. It shows no number. In Default, Extreme and Custom without Infinite it fills from left to right as you get closer to the goal: 50 of 100 points fills half of it, and in Custom the goal is your target score. A team's bar counts both players' points. With Infinite it works the other way round: the bar starts full and every lost heart takes away one share of it (a third with 3 hearts, a fifth with 5 hearts, a tenth with 10 hearts). On a player's own card in Infinite the bar shows that player's hearts, and on a team box it shows all of the team's hearts.</p>
 
 <h3>Turn order</h3>
 <p>The game decides who plays first with a random draw before every 1 vs 1 and 2 vs 2 game. The result is final and cannot be changed. It is shown in a Turn order list below the Spin button (on a phone, in the Players tab), and the player whose turn it is is marked. Solo has no list.</p>
@@ -213,8 +227,9 @@
 <h3>How to host (app only)</h3>
 <ol>
 <li>Open Settings and switch <strong>Play Online</strong> on. This only unlocks hosting; nothing listens on the network yet.</li>
-<li>Open the Play page, choose <strong>Online</strong>, then <strong>Host a game</strong>, pick 1 vs 1 or 2 vs 2, choose the <strong>Modes</strong> (Default or Extreme, and Infinite on or off) and set the names. The mode you pick here is the one this game uses, whatever Settings says. Press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
-<li>In the lobby, the <strong>Connection</strong> box asks what kind of Wi-Fi you are on: <em>No password</em>, <em>Password</em> (a normal Wi-Fi) or <em>Login page</em> (school, hotel or cafe Wi-Fi). For the first two you can type the Wi-Fi name (and password) to show a Wi-Fi QR code that guests scan with their camera to join the Wi-Fi. The name and password stay on your screen: they are not saved, not part of the join link and not sent to guests by PlayGloss. Login page networks often stop devices from talking to each other, so the box suggests logging in everywhere or using your phone's hotspot instead.</li>
+<li>Open the Play page, choose <strong>Online</strong>, then <strong>Host a game</strong>, pick 1 vs 1, 2 vs 2, or Custom, choose the <strong>Modes</strong> (Default or Extreme, and Infinite on or off; Custom also has hearts, target score, time to answer and wheel colors) and set the names. The mode you pick here is the one this game uses, whatever Settings says. Press <strong>Host a game</strong>. The app starts a small server on your local network and shows a clear "Online" indicator.</li>
+<li>The <strong>Modes</strong> box (or the General tab for Custom) also has a <strong>Color (guests)</strong> option: <em>Default</em> means guests keep their own look, <em>Extreme</em> puts the Extreme look (dark red) on every guest while your own look never changes. Guests can still switch to light, and switching back to dark brings Extreme back. It is only shown while they are in your game and is never saved on their device.</li>
+<li>In the lobby, the <strong>Connection</strong> box asks what kind of Wi-Fi you are on: <em>No password</em>, <em>Password</em> (a normal Wi-Fi) or <em>Login page</em> (school, hotel or cafe Wi-Fi). For the first two you can type the Wi-Fi name (and password) to show a Wi-Fi QR code that guests scan with their camera to join the Wi-Fi. For Login page, optional <strong>Wi-Fi name</strong>, <strong>Username / ID</strong> (at a school it is often something like ssxxxxx, where xxxxx is your own number) and <strong>Password</strong> fields let you keep the details on your screen (they are not saved, not sent to guests, and not part of any QR code). The name and password stay on your screen: they are not saved, not part of the join link and not sent to guests by PlayGloss. Login page networks often stop devices from talking to each other, so the box suggests logging in everywhere or using your phone's hotspot instead.</li>
 <li>Share the link shown on screen, or let guests scan the QR code. The secret part of the link (after the #) never leaves the devices that have the link.</li>
 <li>Each guest who asks to join appears in your lobby. You choose which seats guests can take ("Open for guest") and which you keep ("This device"), and you can remove anyone at any time.</li>
 <li>Press <strong>Start game</strong> when everyone is seated. Guests see the same game screen as you and spin, answer and draw on their turns.</li>

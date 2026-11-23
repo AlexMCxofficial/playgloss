@@ -25,8 +25,35 @@ var Session = (function () {
     return r;
   }
 
-  // The mode of the game ("rules") that the lobby tells guests: { extreme, inf }. Always two plain booleans.
-  function cleanRules(r) { return { extreme:!!(r && r.extreme), inf:!!(r && (r.inf || r.infinite)) }; }
+  var LEVELS = ["very-easy", "easy", "normal", "hard", "very-hard", "extremely-hard", "insanely-hard", "impossible"];
+  var TIMES = ["very-easy", "easy", "normal", "hard", "very-hard", "extremely-hard", "insanely-hard", "impossible"]; // same names as Game.TIMES
+  // A whole number from a message, kept inside lo..hi (and on a multiple of step); d when it is not a number.
+  function clampInt(v, lo, hi, step, d) {
+    v = Math.round(Number(v) / step) * step;
+    return typeof v === "number" && isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d;
+  }
+  // The custom setup of a game (hearts, target score, time to answer, wheel colors) as plain, checked values.
+  function cleanCustom(c) {
+    c = c && typeof c === "object" ? c : {};
+    var colors = {};
+    if (c.levelColors && typeof c.levelColors === "object") LEVELS.forEach(function (id) {
+      var v = c.levelColors[id];
+      if (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v)) colors[id] = v.toLowerCase();
+    });
+    return { hearts:clampInt(c.hearts, 1, 10, 1, 3), targetScore:clampInt(c.targetScore, 100, 1000, 50, 100),
+      time:TIMES.indexOf(c.time) >= 0 ? c.time : "normal", levelColors:colors };
+  }
+
+  // The mode of the game ("rules") that the lobby tells guests: { extreme, inf, color } and, for a Custom game,
+  // { custom:{ hearts, targetScore, time } } as well. Always plain values. Wheel colors are not part of it.
+  function cleanRules(r) {
+    var o = { extreme:!!(r && r.extreme), inf:!!(r && (r.inf || r.infinite)), color:(r && r.color === "extreme" ? "extreme" : "default") };
+    if (r && r.custom && typeof r.custom === "object") {
+      var c = cleanCustom(r.custom);
+      o.custom = { hearts:c.hearts, targetScore:c.targetScore, time:c.time };
+    }
+    return o;
+  }
 
   // Checks the game picture the host sent and returns a safe copy, or null. Names are filtered again here.
   function cleanSnap(g, Filter) {
@@ -34,18 +61,21 @@ var Session = (function () {
     function num(n) { return typeof n === "number" && isFinite(n) && n >= -1e6 && n <= 1e6; }
     function name(v, dflt) { v = cleanName(v); return v && !Filter.bad(v) ? v : dflt; }
     function fmt(v) { return typeof v === "string" && FMT.test(v) ? v : ""; }
-    if (!g || typeof g !== "object" || ["solo", "1v1", "2v2"].indexOf(g.mode) < 0) return null;
-    var np = g.mode === "solo" ? 1 : g.mode === "1v1" ? 2 : 4, nt = g.mode === "solo" ? 1 : 2;
+    if (!g || typeof g !== "object" || ["solo", "1v1", "2v2", "custom"].indexOf(g.mode) < 0) return null;
+    var customOn = g.mode === "custom" || !!g.customOn, mode = g.mode === "custom" ? "2v2" : g.mode;
+    var np = mode === "solo" ? 1 : mode === "1v1" ? 2 : 4, nt = mode === "solo" ? 1 : 2;
     if (!Array.isArray(g.players) || g.players.length !== np || !Array.isArray(g.teams) || g.teams.length !== nt || !Array.isArray(g.order)) return null;
-    var out = { mode:g.mode, teams:[], players:[], order:[], pos:0, turn:0, turns:0, offered:!!g.offered, over:!!g.over, winner:null, reason:"", extreme:!!g.extreme, inf:!!g.inf };
+    var out = { mode:mode, customOn:customOn, teams:[], players:[], order:[], pos:0, turn:0, turns:0, offered:!!g.offered, over:!!g.over, winner:null, reason:"", extreme:!!g.extreme, inf:!!g.inf, custom:null };
+    out.custom = cleanCustom(customOn ? g.custom : null); // games without Custom rules always use the standard rules
     for (var i = 0; i < np; i++) {
       var p = g.players[i];
       if (!p || !num(p.score) || (p.team !== 0 && p.team !== 1) || !p.inv) return null;
       var v = { x2:p.inv.x2, x3:p.inv.x3, shield:p.inv.shield };
       if (!num(v.x2) || !num(v.x3) || !num(v.shield)) return null;
       var pl = { name:name(p.name, "Player " + (i + 1)), fmt:fmt(p.fmt), team:Math.min(p.team, nt - 1), score:p.score, inv:v, armed:POWER[p.armed] ? p.armed : null, out:!!p.out };
-      if (out.inf) { // Infinite mode: hearts left (0 to 3) and whether the player is out because they ran out
-        if (!(p.hearts >= 0 && p.hearts <= 3) || p.hearts !== Math.floor(p.hearts)) return null;
+      if (out.inf) { // Infinite: hearts left (3, or the Custom game's number)
+        var maxHearts = customOn ? out.custom.hearts : 3;
+        if (!(p.hearts >= 0 && p.hearts <= maxHearts) || p.hearts !== Math.floor(p.hearts)) return null;
         pl.hearts = p.hearts; pl.dead = !!p.dead;
       }
       out.players.push(pl);
@@ -277,6 +307,6 @@ var Session = (function () {
   Guest.prototype.take = function (seat, name) { this.say({ t:"take", seat:seat, name:cleanName(name) }); };
   Guest.prototype.act = function (a, extra) { var m = { t:"do", a:a }; if (extra) for (var k in extra) m[k] = extra[k]; this.say(m); };
 
-  return { Host:Host, Guest:Guest, cleanRules:cleanRules, cleanSnap:cleanSnap, cleanExtras:cleanExtras, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
+  return { Host:Host, Guest:Guest, cleanRules:cleanRules, cleanCustom:cleanCustom, cleanSnap:cleanSnap, cleanExtras:cleanExtras, checkAction:checkAction, cleanName:cleanName, ACTIONS:ACTIONS };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Session;

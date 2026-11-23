@@ -310,3 +310,54 @@ dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
 .wifi-qr{display:block;margin:.75rem 0 0;border-radius:8px}
 .warnline{margin:.5rem 0 0;padding:.5rem .7rem;border-radius:8px;border:2px solid var(--fg);font-size:.95rem}
 .modeset{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.4rem .75rem;margin:.75rem 0 0}
+
+
+/* ---------- 0.1.5: progress bars, Custom setup, many hearts ---------- */
+/* The bar above a name is a progress bar: the track is empty, the fill (in the side's color) grows from left to right.
+   It shows no number. With Infinite it starts full and shrinks as hearts are lost (see View.progress). */
+.stripe{position:relative;height:12px;margin:.1rem .75rem .5rem;border-radius:6px;background:var(--bg);border:2px solid var(--team);overflow:hidden;box-shadow:0 0 0 1px var(--fg)}
+.stripe .fill{height:100%;width:0;background:var(--team);transition:width .6s ease}
+@media (prefers-reduced-motion:reduce){.stripe .fill{transition:none}}
+
+/* up to 10 hearts: smaller and allowed to wrap */
+.hearts.many{flex-wrap:wrap;gap:1px}
+.hearts.many .heart{width:20px;height:20px}
+.mchip .hearts.many .heart{width:14px;height:14px}
+
+/* Custom setup: tabs that scroll sideways on a narrow screen, sliders, time buttons, color rows */
+.ctabs{display:flex;gap:.35rem;margin-top:1rem;padding:.25rem;border-radius:999px;background:var(--surface);border:1px solid var(--border);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ctabs::-webkit-scrollbar{display:none}
+.ctab{flex:1 0 auto;min-height:44px;padding:0 1.1rem;border:0;border-radius:999px;background:none;color:var(--muted);font:inherit;font-size:1rem;cursor:pointer;white-space:nowrap}
+.ctab[aria-selected="true"]{background:var(--accent);color:var(--on-accent);font-weight:700;box-shadow:0 0 0 2px var(--edge,transparent)}
+.cviews{width:100%;max-width:34rem;margin:.75rem auto 0;text-align:left}
+.cview{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:.75rem}
+.cview[hidden]{display:none}
+.cview h3{margin:0 0 .25rem;font-size:1.05rem}
+.cview .setlabel{display:block;margin-top:.9rem}
+.cview .setlabel:first-child{margin-top:0}
+.cview .row{justify-content:flex-start;margin-top:.4rem}
+.cview .note{margin:.5rem 0 0}
+.cview .panels{margin-top:.75rem}
+.cview .panel{background:var(--bg)}
+.slider{margin-top:.9rem}
+.sliderhead{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.sliderhead .flabel{margin:0;font-weight:700;font-size:1rem;color:var(--fg)}
+.sliderval{font-weight:900;font-size:1.2rem;font-variant-numeric:tabular-nums}
+.slider input[type="range"]{width:100%;min-height:44px;padding:0;border:0;background:none;accent-color:var(--accent);cursor:pointer}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr));gap:.5rem;margin-top:.75rem}
+.tgrid .small{padding:0 .5rem}
+.cview .tablewrap{margin-top:.75rem}
+.cview table{width:100%;border-collapse:collapse;font-size:.9rem}
+.cview th,.cview td{padding:.4rem .35rem;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.lvcolor{margin-top:.5rem;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.lvcolor summary{display:flex;align-items:center;gap:.6rem;min-height:48px;padding:0 .75rem;cursor:pointer;font-weight:700}
+.lvcolor[open] summary{border-bottom:1px solid var(--border)}
+.lvcolor .cp{padding:.25rem .75rem .75rem}
+.box.inner{max-width:none;background:var(--bg)}
+.box h4{margin:0 0 .25rem;font-size:1rem}
+
+@media (max-width:520px){
+  .ctab{padding:0 .8rem;font-size:.95rem}
+  .cview{padding:.6rem}
+  .tgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
