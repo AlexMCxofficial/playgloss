@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuilds tools/data/words.json and tools/data/words_extreme.json from web/js/words.js. MIT License (see LICENSE).
+"""Rebuilds tools/data/words.json from web/js/words.js. MIT License (see LICENSE).
 
 Use it when the readable lists have drifted from the packed file the game really ships (tests/test_words.js fails)
 and the packed file is the one that was reviewed. It is the exact reverse of tools/pack_words.py, so afterwards
@@ -11,7 +11,7 @@ import json, os, re, sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 PACK = os.path.join(ROOT, "web/js/words.js")
-OUT = {"n": "tools/data/words.json", "x": "tools/data/words_extreme.json"}
+OUT = {"n": "tools/data/words.json"}
 
 
 def main():
@@ -26,6 +26,8 @@ def main():
         sys.exit("sentence count %d does not match the header (%d)" % (len(table), count))
     sections = {"n": m.group(3), "x": m.group(4)}
     for key, body in sections.items():
+        if key not in OUT:  # the "x" list is empty since 0.1.6
+            continue
         data = {}
         for level, csv in re.findall(r'"([^"]+)": "([^"]*)"', body):
             nums = [int(p, 36) for p in csv.split(",")] if csv else []

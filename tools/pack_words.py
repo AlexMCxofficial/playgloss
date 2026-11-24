@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Packs the word lists into web/js/words.js. MIT License (see LICENSE).
 
-Input : tools/data/words.json and tools/data/words_extreme.json (made by build_words.py)
+Input : tools/data/words.json (made by build_words.py)
 Output: web/js/words.js  (the only word file the game loads)
 
-Why: the old files were two big object trees (about 2,800 objects and 11,200 strings kept in memory for the whole
-session). The pack keeps every distinct sentence once, in a single text, and each word is five small numbers.
+Why: the old files were big object trees (thousands of objects and strings kept in memory for the whole session).
+The pack keeps every distinct sentence once, in a single text, and each word is five small numbers.
+Since 0.1.6 every level has 1,400 words and Extreme mode uses the same list (the "x" list stays empty).
 The game reads one word at a time (Words.get), so almost nothing is kept in memory.
 
 Run: python3 tools/pack_words.py
@@ -13,7 +14,7 @@ Run: python3 tools/pack_words.py
 import json, os, sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-SRC = {"n": "tools/data/words.json", "x": "tools/data/words_extreme.json"}
+SRC = {"n": "tools/data/words.json"}
 OUT = "web/js/words.js"
 
 HEAD = "var Words = (function (P) {\n"
@@ -58,7 +59,7 @@ def main():
         if s not in index:
             index[s] = len(table); table.append(s)
         return index[s]
-    pack = {}
+    pack = {"x": {}}
     for key, rel in SRC.items():
         with open(os.path.join(ROOT, rel), encoding="utf-8") as f:
             data = json.load(f)

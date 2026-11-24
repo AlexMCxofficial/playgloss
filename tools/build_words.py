@@ -4,40 +4,38 @@
 Setup (once):
     pip install nltk wordfreq better-profanity
     python -m nltk.downloader wordnet
-    python -c "from wordfreq import top_n_list; from pathlib import Path; Path('freq.txt').write_text('\n'.join(top_n_list('en',120000)), encoding='utf-8')"
+    python -c "from wordfreq import top_n_list; from pathlib import Path; Path('freq.txt').write_text('\n'.join(top_n_list('en',150000)), encoding='utf-8')"
 
 Frequency list: a plain text file, ONE WORD PER LINE, MOST COMMON FIRST (extra columns
 such as counts are ignored). Choose a list whose license fits your project and credit
 it in CREDITS.md. For a quick test only you can export one from the `wordfreq` package:
     pip install wordfreq
-    python3 -c "from wordfreq import top_n_list; print('\\n'.join(top_n_list('en',120000)))" > freq.txt
+    python3 -c "from wordfreq import top_n_list; print('\\n'.join(top_n_list('en',150000)))" > freq.txt
 (wordfreq's data is CC BY-SA, so check that before shipping the result.)
 
 Run from the PROJECT ROOT (the folder that contains web/ and tools/):
     python3 tools/build_words.py --freq freq.txt
 
 Output: tools/data/words.json and tools/words_review.tsv (read this before releasing).
-Then run tools/pack_words.py, which packs both lists into web/js/words.js (the only file the game loads).
+Then run tools/pack_words.py, which packs the list into web/js/words.js (the only file the game loads).
 Same --seed gives the same set every time.
 
-EXTREME MODE (0.1.4). Extreme flips how often the levels come up, so the hard levels need far more words than the
-normal 25 / 50 / 75. Add --extreme to build that list with the counts flipped (Impossible 500 ... Very Easy 25):
-    python tools/build_words.py --freq freq.txt --extreme
-It writes tools/data/words_extreme.json and tools/words_extreme_review.tsv. With --extreme and no
---freq file, the ranked word list is made for you with the wordfreq package (pip install wordfreq), so there is
-nothing to redirect into a file. That works the same on Windows (PowerShell), macOS and Linux.
+0.1.6: EVERY level now has 1,400 words (11,200 in total), so Advanced Mode can give any level (even 100%) the odds
+it likes without running out of fresh words. The wrong meanings are taken from the meanings of the chosen words
+themselves (same kind of word, different topic), so every sentence is stored once and the pack stays small.
+
+EXTREME MODE (0.1.4) used a second list with flipped word counts. Since 0.1.6 every level has the same number of
+words, so Extreme mode uses the one list and --extreme is no longer needed (the old flag is still accepted and ignored).
 """
 import argparse, json, random, re, sys
 from functools import lru_cache
 
-TIERS = [  # id, how many words
-    ("very-easy", 500), ("easy", 300), ("normal", 200), ("hard", 150),
-    ("very-hard", 100), ("extremely-hard", 75), ("insanely-hard", 50), ("impossible", 25),
-]
-# Rank windows (0-based, in the cleaned list ordered by frequency) each tier samples from.
-# They scale down automatically if the cleaned list is shorter than the last window.
-WINDOWS = [(200, 3000), (3000, 6000), (6000, 11000), (11000, 17000),
-           (17000, 25000), (25000, 35000), (35000, 48000), (48000, 65000)]
+PER_LEVEL = 1400
+TIERS = [(tid, PER_LEVEL) for tid in ("very-easy", "easy", "normal", "hard", "very-hard", "extremely-hard", "insanely-hard", "impossible")]
+# Rank windows (0-based, in the cleaned list ordered by frequency) each tier samples from. Every window holds well over
+# 1,400 usable words. They scale down automatically if the cleaned list is shorter than the last window.
+WINDOWS = [(200, 2800), (2800, 5600), (5600, 8800), (8800, 12400),
+           (12400, 16400), (16400, 20400), (20400, 24400), (24400, 27700)]
 
 STOP = set("""the and for are but not you all any can had her was one our out has his how its may new now old see two way who
 did get let say she too use that this with have from they will would there their what about which when your said each
@@ -107,8 +105,6 @@ def good_wrong(t, c):
     return t["word"][: max(4, len(t["word"]) - 3)] not in c["meaning"].lower()
 
 
-# Extreme mode: the same eight levels with the word counts flipped (the hardest level gets the most words).
-EXTREME_TIERS = [(tid, n) for (tid, _), (_, n) in zip(TIERS, reversed(TIERS))]
 
 
 def freq_from_wordfreq(n):
@@ -128,58 +124,68 @@ def build(words, wn, seed=1, log=print, bad=None, tiers=TIERS):
     if scale < 1:
         log(f"WARNING: only {n} usable words; windows scaled by {scale:.2f}. Use a longer frequency list.")
     rnd = random.Random(seed)
-    bypos = {}
-    for c in cand:
-        bypos.setdefault(c["pos"], []).append(c)
-    result, review, taken = {}, [], set()
+    # Pass 1: shuffle the window of every level and keep the first `count` plus a reserve for words that find no wrong meanings.
+    RESERVE = 1200
+    chosen = []
     for (tid, count), (lo, hi) in zip(tiers, WINDOWS):
-        lo, hi = int(lo * scale), int(hi * scale)
-        window = cand[lo:hi]
+        window = cand[int(lo * scale):int(hi * scale)]
         rnd.shuffle(window)
-        items = []
-        for t in window:
-            if len(items) == count:
-                break
-            if t["word"] in taken:
-                continue
-            pool = bypos[t["pos"]]
+        if len(window) < count:
+            log(f"WARNING: {tid} has only {len(window)} candidates for {count} words")
+        chosen.append((tid, count, window[:count + RESERVE]))
+    # Pass 2: the wrong meanings come from the meanings of the chosen words, so every sentence is stored once.
+    bypos, allpos = {}, {}
+    for _, _, items in chosen:
+        for c in items:
+            bypos.setdefault(c["pos"], []).append(c)
+    for c in cand:
+        allpos.setdefault(c["pos"], []).append(c)
+
+    def wrongs(t):
+        for pool in (bypos[t["pos"]], allpos[t["pos"]]):  # the whole cleaned list only if the chosen words do not offer enough
             wrong = []
             for _ in range(600):
                 c = rnd.choice(pool)
                 if good_wrong(t, c) and all(c["meaning"] != x["meaning"] and good_wrong(x, c) for x in wrong):
                     wrong.append(c)
                     if len(wrong) == 3:
-                        break
-            if len(wrong) < 3:
+                        return wrong
+        return None
+
+    result, review = {}, []
+    for tid, count, items in chosen:
+        out = []
+        for t in items:
+            if len(out) == count:
+                break
+            wrong = wrongs(t)
+            if not wrong:
                 continue
-            taken.add(t["word"])
-            items.append({"word": t["word"], "meaning": t["meaning"], "wrong": [x["meaning"] for x in wrong]})
+            out.append({"word": t["word"], "meaning": t["meaning"], "wrong": [x["meaning"] for x in wrong]})
             review.append((tid, t["word"], t["pos"], t["meaning"], " | ".join(x["meaning"] for x in wrong)))
-        if len(items) < count:
-            log(f"WARNING: {tid} has only {len(items)} of {count} words")
-        result[tid] = sorted(items, key=lambda i: i["word"])
+        if len(out) < count:
+            log(f"WARNING: {tid} has only {len(out)} of {count} words")
+        result[tid] = sorted(out, key=lambda i: i["word"])
     return result, review
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--freq", help="word list, most common first (with --extreme it is optional: wordfreq is used)")
-    ap.add_argument("--extreme", action="store_true", help="build the Extreme mode list (flipped word counts) instead")
-    ap.add_argument("--wordfreq-size", type=int, default=120000, help="how many words to take from wordfreq (default 120000)")
+    ap.add_argument("--freq", help="word list, most common first (optional: without it the wordfreq package is used)")
+    ap.add_argument("--extreme", action="store_true", help="ignored since 0.1.6 (every level has the same number of words)")
+    ap.add_argument("--wordfreq-size", type=int, default=150000, help="how many words to take from wordfreq (default 150000)")
     ap.add_argument("--out")
     ap.add_argument("--review")
     ap.add_argument("--blocklist", help="optional file of extra words to exclude, one per line")
     ap.add_argument("--seed", type=int)
     ap.add_argument("--no-profanity-filter", action="store_true", help="skip the better-profanity check (not recommended)")
     a = ap.parse_args()
-    if not a.freq and not a.extreme:
-        ap.error("--freq FILE is required (only --extreme can make its own list with wordfreq)")
-    name, var = ("words_extreme", "WORDS_EXTREME") if a.extreme else ("words", "WORDS")
+    name = "words"
     a.out = a.out or f"tools/data/{name}.json"
     a.review = a.review or f"tools/{name}_review.tsv"
     if a.seed is None:
-        a.seed = 2 if a.extreme else 1
-    tiers = EXTREME_TIERS if a.extreme else TIERS
+        a.seed = 1
+    tiers = TIERS
     try:
         from nltk.corpus import wordnet as wn
         wn.synsets("test")
