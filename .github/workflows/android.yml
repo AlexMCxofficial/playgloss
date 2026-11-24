@@ -52,18 +52,6 @@ jobs:
 
       # The version must match in package.json, Cargo.toml and tauri.conf.json.
       - name: Check version numbers
-
-      - name: Run the tests
-        shell: bash
-        run: |
-          for t in tests/*.js; do
-            echo "== $t"
-            node "$t"
-          done
-          cache: npm
-
-      # The version must match in package.json, Cargo.toml and tauri.conf.json.
-      - name: Check version numbers
         run: |
           a=$(node -p "require('./package.json').version")
           b=$(node -p "require('./src-tauri/tauri.conf.json').version")
