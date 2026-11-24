@@ -1,0 +1,1 @@
+Choose a font and a text size (75% to 150%). Pick a solid color or your own picture as the background, with fit and blur. New Advanced Mode (off by default): set the chance of every level and power-up, switch the "?" slice off, play your own 2, 3 or 4 choice questions, and export or import your setup. Every level now has 1,400 words.
