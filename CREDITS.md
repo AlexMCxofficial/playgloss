@@ -28,6 +28,15 @@ To cite WordNet:
 - Miller, G. A. (1995). WordNet: A Lexical Database for English. *Communications of the ACM*, 38(11), 39-41.
 - Fellbaum, C. (Ed.). (1998). *WordNet: An Electronic Lexical Database*. Cambridge, MA: MIT Press.
 
+### Fonts: Fira Code and JetBrains Mono (SIL Open Font License 1.1)
+
+The two monospace fonts you can choose in Settings are shipped as web fonts in `web/fonts/` (the latin subsets of the variable fonts, taken from the Fontsource packages `@fontsource-variable/fira-code` and `@fontsource-variable/jetbrains-mono`):
+
+- Fira Code, Copyright 2014-2020 The Fira Code Project Authors (https://github.com/tonsky/FiraCode)
+- JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+Both are licensed under the SIL Open Font License, Version 1.1. The license texts are in `web/fonts/FIRA-CODE-OFL.txt` and `web/fonts/JETBRAINS-MONO-OFL.txt` and must stay with the fonts. The fonts are not sold on their own and are not renamed. PlayGloss's own code stays MIT. Helvetica, Arial, Segoe UI and Compasse are **not** shipped: they are the property of their owners (Compasse is a commercial font by Dharma Type) and are used only if your device already has them.
+
 ## Inside the apps only (Windows, macOS, Linux and Android; not the website)
 
 ### Tauri 2 (MIT or Apache 2.0)

@@ -4,7 +4,7 @@ PlayGloss collects nothing.
 
 - No analytics, cookies, ads or trackers.
 - No accounts. The game makes no network requests while you play.
-- The only things stored are your settings, kept on your own device (in your browser's local storage) and never sent anywhere: dark/light choice, color scheme and custom color, the Default/Extreme mode, the Infinite switch, the look to go back to when you leave Extreme mode, and the Play Online switch.
+- The only things stored are your settings, kept on your own device (in your browser's local storage) and never sent anywhere: dark/light choice, color scheme and custom color, the Default/Extreme mode, the Infinite switch, the look to go back to when you leave Extreme mode, the Play Online switch, your font and text size, your background (the scheme's own, a solid color, or a picture you chose, shrunk and kept as text in your browser storage, with its fit and blur), and the Advanced Mode settings (the switch, the odds you set, the "?" switch, the questions you wrote and whether to ask about exporting before a Custom game). A picture, a configuration file or a word list you choose is read only on your device and is never uploaded.
 - If you install the website as a web app, your browser also keeps a copy of the game's own files so it works offline. Nothing about you is stored in it.
 - Scores, power-ups and answers exist only while the page is open. Nothing about a game is saved or sent.
 - The Custom setup (hearts, target score, time to answer, wheel colors and team names) is kept only in the browser tab's temporary session storage, like names and colors, and is erased when you close the tab or app. When you host a Custom game, these rules are sent to the guests on your own network, together with the game itself.
