@@ -3,7 +3,7 @@ name: Deploy website
 on:
   push:
     branches: [main]
-    paths: ["web/**", ".github/workflows/pages.yml"]
+    paths: ["web/**", "tests/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,6 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run the tests
+        shell: bash
+        run: |
+          for t in tests/*.js; do
+            echo "== $t"
+            node "$t"
+          done
       - uses: actions/configure-pages@v5
       - name: Check the site folder
         run: |

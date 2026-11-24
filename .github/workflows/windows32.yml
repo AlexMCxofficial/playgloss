@@ -19,6 +19,14 @@ jobs:
         with:
           node-version: 20
 
+      - name: Run the tests
+        shell: bash
+        run: |
+          for t in tests/*.js; do
+            echo "== $t"
+            node "$t"
+          done
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: i686-pc-windows-msvc

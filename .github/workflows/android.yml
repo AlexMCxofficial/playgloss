@@ -48,6 +48,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Run the tests
+        shell: bash
+        run: |
+          for t in tests/*.js; do
+            echo "== $t"
+            node "$t"
+          done
           cache: npm
 
       # The version must match in package.json, Cargo.toml and tauri.conf.json.

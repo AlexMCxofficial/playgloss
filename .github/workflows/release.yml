@@ -35,6 +35,14 @@ jobs:
         with:
           node-version: 20
 
+      - name: Run the tests
+        shell: bash
+        run: |
+          for t in tests/*.js; do
+            echo "== $t"
+            node "$t"
+          done
+
       - name: Install Linux libraries
         if: matrix.os == 'ubuntu-22.04'
         run: |
