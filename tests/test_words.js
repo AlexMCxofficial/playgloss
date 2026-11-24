@@ -7,10 +7,11 @@ const ctx = {}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "web/js/words.js"), "utf8"), ctx, { filename: "web/js/words.js" });
 const Words = ctx.Words;
 const src = (f) => JSON.parse(fs.readFileSync(path.join(root, f), "utf8"));
-const lists = { false: src("tools/data/words.json"), true: src("tools/data/words_extreme.json") };
+// Since 0.1.6 there is one list (1,400 words per level); Extreme mode reads the same one.
+const lists = { false: src("tools/data/words.json"), true: src("tools/data/words.json") };
 
 let checked = 0;
-for (const extreme of [false, true]) {
+for (const extreme of [false, true]) { // both ask for the same list
   for (const id of Object.keys(lists[extreme])) {
     const want = lists[extreme][id];
     assert.strictEqual(Words.count(id, extreme), want.length, id + " count");
