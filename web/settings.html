@@ -61,6 +61,68 @@
 
 <p class="note">OLED uses pure black and Extreme uses dark red with a red accent. Choosing either one switches to Dark, and choosing Light leaves it.</p>
 <p class="note">These choices are saved only on this device and are never sent anywhere.</p>
+
+<hr class="sep">
+
+<h3 id="fonts">Fonts</h3>
+
+<div class="setrow">
+<span class="setlabel" id="font-family-label">Font</span>
+<div class="row" role="group" aria-labelledby="font-family-label" id="font-family-buttons"></div>
+</div>
+
+<div class="setrow">
+<span class="setlabel" id="font-size-label">Size</span>
+<div class="row slidebox" role="group" aria-labelledby="font-size-label">
+<input type="range" id="font-size-slider" min="75" max="150" step="5" value="100" aria-label="Text size in percent">
+<label class="numbox"><input type="number" id="font-size-input" min="75" max="150" step="5" value="100" inputmode="numeric" aria-label="Text size in percent"><span aria-hidden="true">%</span></label>
+</div>
+</div>
+
+<p class="note">The font and the size apply to the whole app. System is the default (your device's own font); 100% is the normal size and you can go from 75% to 150%. Helvetica, Arial, Segoe UI and Compasse are shown only if they are installed on your device (they are not shipped with PlayGloss, and Compasse is a commercial font), otherwise a similar font is used. Fira Code and JetBrains Mono are open source (SIL Open Font License), are shipped with PlayGloss and are monospace fonts.</p>
+
+<hr class="sep">
+
+<h3 id="background">Background</h3>
+
+<div class="setrow">
+<span class="setlabel" id="bg-type-label">Type</span>
+<div class="row" role="group" aria-labelledby="bg-type-label" id="bg-type-buttons"></div>
+</div>
+
+<div id="bg-color-box" class="setcustom" hidden>
+<p class="note">Pick a solid background color from the presets, a hex code, the RGB sliders or the color wheel. Text and cards change to black or white automatically so they stay readable.</p>
+</div>
+
+<div id="bg-image-box" class="setcustom" hidden>
+<p class="note">Choose a picture from your device. PlayGloss shrinks it to fit a screen and keeps it only on this device; it is never uploaded.</p>
+<div class="row filebox">
+<input type="file" id="bg-image-input" accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif" aria-label="Background picture">
+<button type="button" id="bg-image-clear" class="small">Remove</button>
+</div>
+<p id="bg-image-msg" class="note" role="status" aria-live="polite"></p>
+<div id="bg-image-preview" class="bgpreview" hidden>
+<img id="bg-image-preview-img" src="" alt="Preview of your background picture">
+</div>
+</div>
+
+<div class="setrow" id="bg-fit-row" hidden>
+<span class="setlabel" id="bg-fit-label">Fit</span>
+<div class="row" role="group" aria-labelledby="bg-fit-label">
+<button class="small" type="button" data-bg-fit="cover">Cover</button>
+<button class="small" type="button" data-bg-fit="contain">Contain</button>
+</div>
+</div>
+
+<div class="setrow" id="bg-blur-row" hidden>
+<span class="setlabel" id="bg-blur-label">Blur</span>
+<div class="row slidebox" role="group" aria-labelledby="bg-blur-label">
+<input type="range" id="bg-blur-slider" min="0" max="10" step="1" value="0" aria-label="Background blur from 0 to 10">
+<output id="bg-blur-value" for="bg-blur-slider">0</output>
+</div>
+</div>
+
+<p class="note"><strong>Scheme</strong> uses the background of your color scheme (the default). <strong>Color</strong> paints the page with one solid color. <strong>Image</strong> shows your own picture behind the app: <em>Cover</em> fills the whole screen and crops the edges, <em>Contain</em> shows the whole picture and fills the rest with the scheme color. <strong>Blur</strong> softens the background, from 0 (off, the default) to 10 (strongest); it is available for the Image type.</p>
 </section>
 
 <section aria-labelledby="modes">
@@ -104,6 +166,30 @@
 <p id="online-on" class="note" hidden>Turning this on does not open anything by itself. A game can only be joined after you choose Online, then Host a game, on the Play page, you approve every person who asks to join, and it closes when you stop hosting, leave the page or close the app.</p>
 <p class="note">It is off by default. Only use it on a network you trust, such as your home Wi-Fi, and not on public Wi-Fi. Windows and macOS may ask you to allow network access the first time you host.</p>
 </section>
+
+<section aria-labelledby="advanced" id="advanced-section">
+<h2 id="advanced">Advanced Mode</h2>
+<p class="note">Advanced Mode unlocks deep customization for Custom games. It is off by default and changes nothing until you turn it on <em>and</em> switch on Custom rules on the Play page.</p>
+
+<div class="setrow">
+<span class="setlabel" id="advanced-mode-label">Advanced Mode</span>
+<div class="row" role="group" aria-labelledby="advanced-mode-label">
+<button class="small" type="button" data-advanced-set="off">Off</button>
+<button class="small" type="button" data-advanced-set="on">On</button>
+</div>
+</div>
+
+<div id="advanced-note" hidden>
+<p class="note">Advanced Mode is on. With Custom rules switched on, an <strong>Advanced</strong> tab appears before <strong>Teams</strong>. In it you can:</p>
+<ul class="note">
+<li>change the chance of every level and of 2x, 3x, Shield and Free 5 (in percent, up to two decimals, and together exactly 100%; you always see how much is left to give out),</li>
+<li>switch the surprise slice &quot;?&quot; on or off,</li>
+<li>play the built-in words (Default) or your own multiple-choice questions with 2, 3 or 4 choices (Custom), and import or export them as a word list,</li>
+<li>export or import all of it as <em>Advanced Custom Mode Configurations</em>.</li>
+</ul>
+<p class="note">Everything stays on this device. Turning Advanced Mode off hides the tab and the games go back to the standard odds and words (your choices are kept for next time).</p>
+</div>
+</section>
 </main>
 <footer>
 <ul>
@@ -116,6 +202,7 @@
 </footer>
 <script src="js/modes.js"></script>
 <script src="js/color.js"></script>
+<script src="js/advanced.js"></script>
 <script src="js/settings.js"></script>
 </body>
 </html>

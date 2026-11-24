@@ -34,17 +34,35 @@ var Overlays = (function () {
 
   // Picks the next word of a level and shuffles its answers. The host calls this once per question, so the screen
   // that shows the question and the screen that judges it always agree.
-  // Extreme mode draws from the Extreme list (words.js), which has many more words on the hard levels because they
-  // come up so often. Where that list is missing a level, the normal list is used.
-  // Only the picked word is read out of the pack; no list is kept in memory.
-  function pick(lv, extreme) {
+  // Since 0.1.6 every level has its own 1,400 words and Extreme mode uses the same list (words.js still reads an Extreme list
+  // when a pack has one). Only the picked word is read out of the pack; no list is kept in memory.
+  // In a Custom game with Advanced Mode and "Questions: Custom" (g.custom.adv.questions) the player's own questions are
+  // asked instead, whatever the level; the level only decides the points and the seconds.
+  function pick(lv, extreme, g) {
+    var adv = g && g.custom && g.custom.adv;
+    if (adv && adv.questions === "custom" && typeof PGAdvanced !== "undefined") {
+      var own = PGAdvanced.questions();
+      if (own.length) return pickOwn(own);
+    }
     var n = Words.count(lv.id, extreme), u = used[lv.id] || (used[lv.id] = []), seen = {}, pool = [], k;
     u.forEach(function (x) { seen[x] = 1; });
     for (k = 0; k < n; k++) if (!seen[Words.word(lv.id, extreme, k)]) pool.push(k);
     if (!pool.length) { u.length = 0; for (k = 0; k < n; k++) pool.push(k); }
     var w = Words.get(lv.id, extreme, pool[Math.floor(Math.random() * pool.length)]); u.push(w.word);
-    var opts = shuffle([w.meaning].concat(w.wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
-    return { word: w.word, opts: opts, right: opts.findIndex(function (o) { return o.ok; }) };
+    return build(w.word, w.meaning, w.wrong);
+  }
+  // The player's own questions: every one comes up once before any comes up again.
+  function pickOwn(list) {
+    var u = used.own || (used.own = []), pool = [], k;
+    for (k = 0; k < list.length; k++) if (u.indexOf(k) < 0) pool.push(k);
+    if (!pool.length) { u.length = 0; for (k = 0; k < list.length; k++) pool.push(k); }
+    var i = pool[Math.floor(Math.random() * pool.length)], q = list[i];
+    u.push(i);
+    return build(q.word, q.meaning, q.wrong.slice(0, q.choices - 1));
+  }
+  function build(word, meaning, wrong) {
+    var opts = shuffle([meaning].concat(wrong).map(function (t, k) { return { t: t, ok: k === 0 }; }));
+    return { word: word, opts: opts, right: opts.findIndex(function (o) { return o.ok; }) };
   }
 
   // Question overlay on this screen: shows word and shuffled options. pre is a question made by pick() (a new one
@@ -52,7 +70,7 @@ var Overlays = (function () {
   // Returns a Promise that resolves with the result.
   function question(g, lv, pre) {
     return new Promise(function (resolve) {
-      var q = pre || pick(lv, g.extreme), w = { word: q.word }, opts = q.opts;
+      var q = pre || pick(lv, g.extreme, g), w = { word: q.word }, opts = q.opts;
       var boost = g.players[g.turn].armed, finished = false;
       var secs = lv.time;
       $("q-level").textContent = lv.name + ", " + pl(lv.points, "point") + (boost ? ", " + (boost === "shield" ? "Shield" : boost.replace("x", "") + "x") + " active" : "");

@@ -66,8 +66,10 @@
   function runOf() { return cfg.run ? { extreme:!!cfg.run.extreme, inf:!!cfg.run.inf, color:cfg.run.color || "default" } : settingsRun(); }
   // The rules of a Custom game, in the shape the lobby, Game.create and the guests use.
   function customRun() {
-    var c = cfg.custom;
-    return { extreme:c.extreme, inf:c.inf, color:c.color, custom:{ hearts:c.hearts, targetScore:c.targetScore, time:c.time, levelColors:c.levelColors } };
+    var c = cfg.custom, k = { hearts:c.hearts, targetScore:c.targetScore, time:c.time, levelColors:c.levelColors };
+    var adv = window.PGAdvanced ? PGAdvanced.forGame() : null; // only while Advanced Mode is on, and only what differs from the standard game
+    if (adv) k.adv = adv;
+    return { extreme:c.extreme, inf:c.inf, color:c.color, custom:k };
   }
   // The rules of a game on this device (a Custom game uses its own setup, the others use Settings).
   function localRun() { return cfg.customOn ? customRun() : settingsRun(); }
@@ -187,11 +189,16 @@
   }
 
   /* ---------- Custom mode configuration ---------- */
-  // The Custom setup, in tabs (General, Time, Colors, Teams) so it fits on a phone. The same box is used on this device
+  // The Custom setup, in tabs (General, Time, Colors, Advanced, Teams) so it fits on a phone. The same box is used on this device
   // (Play > Custom) and in the Online > Host a game form (online = true), where General also has the guests' Color.
+  // Advanced tab only appears when Advanced Mode is ON in Settings.
   function drawCustom(box, online) {
     var c = cfg.custom, tabs = h("div", "ctabs"), views = h("div", "cviews"), btns = {}, vs = {};
-    var names = [["general", "General"], ["time", "Time"], ["colors", "Colors"], ["teams", "Teams"]];
+    var advMode = PGAdvanced.enabled();
+    advDraft = null;
+    var names = [["general", "General"], ["time", "Time"], ["colors", "Colors"]];
+    if (advMode) names.push(["advanced", "Advanced"]);
+    names.push(["teams", "Teams"]);
     tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "Custom settings");
     function show(k) {
       customTab = k;
@@ -293,6 +300,10 @@
     reset.dataset.role = "reset";
     col.appendChild(h("div", "row")).appendChild(reset);
 
+    // The configuration export and import: in the Advanced tab when Advanced Mode is on, at the end of General when it is off
+    if (advMode) drawAdvancedTab(vs.advanced);
+    else drawConfigBox(gen, false);
+
     // Teams: the sides of the chosen mode (one for Solo, two for 1 vs 1, two teams of two for 2 vs 2)
     var tm2 = vs.teams, panels = h("div", "panels");
     tm2.appendChild(h("p", "note", "Custom rules are played as " + (cfg.mode === "solo" ? "Solo." : cfg.mode === "1v1" ? "1 vs 1." : "2 vs 2: two teams of two.")));
@@ -301,6 +312,274 @@
 
     show(names.some(function (t) { return t[0] === customTab; }) ? customTab : "general");
   }
+
+  /* ---------- the Advanced tab (Advanced Mode on in Settings, and Custom rules on) ---------- */
+  // The probability boxes as typed, in hundredths of a percent (so there is never a rounding error): { id: number }.
+  // It is null until the Advanced tab is drawn. Start game and Host a game check it, so odds that do not add up to 100% never play.
+  var advDraft = null;
+  var cents = function (v) { return Math.round(v * 100); };
+  var pct = function (c) { return (c / 100).toFixed(2); };
+  function draftTotal() { return PGAdvanced.ALL_IDS.reduce(function (s, id) { return s + advDraft[id]; }, 0); }
+
+  // Label and two or more buttons in one group (no redraw: only the pressed state changes).
+  function pair(parent, label, items, current, pick) {
+    var lab = h("span", "setlabel", label), row = h("div", "row"), btns = [];
+    lab.id = "adv-" + label.replace(/\W+/g, "-").toLowerCase();
+    row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", lab.id);
+    items.forEach(function (m) {
+      var x = h("button", "small", m[1]); x.type = "button"; x.setAttribute("aria-pressed", m[0] === current);
+      x.onclick = function () { btns.forEach(function (b) { b.setAttribute("aria-pressed", b === x); }); pick(m[0]); };
+      btns.push(x); row.appendChild(x);
+    });
+    parent.appendChild(lab); parent.appendChild(row);
+  }
+
+  function drawAdvancedTab(parent) {
+    var adv = PGAdvanced.get(), ids = PGAdvanced.ALL_IDS, inputs = {}, maxCells = {}, names = {};
+    PGAdvanced.LEVEL_IDS.forEach(function (id) { names[id] = PGAdvanced.LEVEL_NAMES[id]; });
+    PGAdvanced.POWER_IDS.forEach(function (id) { names[id] = PGAdvanced.POWER_NAMES[id]; });
+    advDraft = {}; ids.forEach(function (id) { advDraft[id] = cents(adv.weights[id]); });
+
+    /* Probabilities */
+    parent.appendChild(h("h3", "", "Probabilities"));
+    parent.appendChild(h("p", "note", "Choose how often each level and each power-up comes up when the wheel stops. Every box is a percentage with up to two decimals, and together they must add up to exactly 100%. The numbers below tell you how much is left to give out. Extreme mode still flips the eight level chances (what you give Very Easy goes to Impossible, and so on); the power-ups stay as you set them."));
+    var remain = h("p", "advremain"); remain.setAttribute("role", "status"); remain.setAttribute("aria-live", "polite");
+    parent.appendChild(remain);
+    var wrap = h("div", "tablewrap"), table = h("table", "advtable"), head = h("tr");
+    ["Level or power-up", "Chance (%)", "Most it can have"].forEach(function (x) { head.appendChild(h("th", "", x)); });
+    table.appendChild(h("thead")).appendChild(head);
+    var body = h("tbody");
+    function refresh() {
+      var total = draftTotal(), rem = 10000 - total;
+      remain.textContent = rem === 0 ? "Everything is given out: 100.00%. These odds are saved."
+        : rem > 0 ? "Left to give out: " + pct(rem) + "% (the total must be 100.00%). Not saved yet."
+        : "Over by " + pct(-rem) + "%: take that much away. Not saved yet.";
+      remain.className = "advremain " + (rem === 0 ? "ok" : rem > 0 ? "low" : "high");
+      ids.forEach(function (id) { maxCells[id].textContent = pct(Math.max(0, 10000 - (total - advDraft[id]))) + "%"; });
+    }
+    function toWeights() { var w = {}; ids.forEach(function (id) { w[id] = advDraft[id] / 100; }); return w; }
+    ids.forEach(function (id) {
+      var tr = h("tr"), lab = h("label", "", names[id]), inp = h("input", "advin"), th = h("th"), mx = h("td", "advmax");
+      inp.id = "adv-p-" + id; lab.setAttribute("for", inp.id); th.scope = "row"; th.appendChild(lab);
+      inp.type = "number"; inp.min = "0"; inp.max = "100"; inp.step = "0.01"; inp.inputMode = "decimal"; inp.value = pct(advDraft[id]);
+      inp.oninput = function () {
+        var v = parseFloat(inp.value);
+        advDraft[id] = isFinite(v) ? Math.max(0, Math.min(10000, cents(v))) : 0;
+        refresh();
+        if (draftTotal() === 10000) PGAdvanced.set({ weights: toWeights() });
+      };
+      inp.onchange = function () { inp.value = pct(advDraft[id]); };
+      var cell = h("td"); cell.appendChild(inp);
+      tr.appendChild(th); tr.appendChild(cell); tr.appendChild(mx); body.appendChild(tr);
+      inputs[id] = inp; maxCells[id] = mx;
+    });
+    table.appendChild(body); wrap.appendChild(table); parent.appendChild(wrap);
+    refresh();
+    var reset = h("button", "small", "Back to the standard odds"); reset.type = "button";
+    reset.onclick = function () {
+      PGAdvanced.resetWeights();
+      var w = PGAdvanced.get().weights;
+      ids.forEach(function (id) { advDraft[id] = cents(w[id]); inputs[id].value = pct(advDraft[id]); });
+      refresh();
+    };
+    parent.appendChild(h("div", "row")).appendChild(reset);
+
+    /* The "?" slice */
+    parent.appendChild(h("h3", "", "Surprise slice"));
+    pair(parent, "Enable/Disable \"?\"", [[true, "Enable"], [false, "Disable"]], adv.eggEnabled, function (on) { PGAdvanced.set({ eggEnabled: on }); });
+    parent.appendChild(h("p", "note", "When disabled, the \"?\" slice never comes up. Its chance cannot be changed."));
+
+    /* Questions */
+    parent.appendChild(h("h3", "", "Words and questions"));
+    var defNote = h("p", "note", "Default uses the built-in word list, with 1,400 words for every level, so any odds you choose still give fresh words."), box = h("div", "qbox");
+    pair(parent, "Questions", [["default", "Default"], ["custom", "Custom"]], adv.questionsMode, function (m) {
+      PGAdvanced.set({ questionsMode: m }); defNote.hidden = m === "custom"; box.hidden = m !== "custom";
+    });
+    defNote.hidden = adv.questionsMode === "custom"; box.hidden = adv.questionsMode !== "custom";
+    parent.appendChild(defNote); parent.appendChild(box);
+    drawQuestions(box);
+
+    drawConfigBox(parent, true);
+  }
+
+  // Custom questions: the list, a form to add one, and the word list import and export.
+  function drawQuestions(box) {
+    var status = h("p", "note"), count = 4, qs = PGAdvanced.get().customQuestions;
+    status.setAttribute("role", "status"); status.setAttribute("aria-live", "polite");
+    box.textContent = "";
+    box.appendChild(h("p", "note", "Your own questions replace the built-in words. A random one is asked each turn (none comes back before all have been asked), and the level only decides the points and the time. Add at least one."));
+    var list = h("ol", "qlist");
+    qs.forEach(function (q, i) {
+      var li = h("li", "qitem"), del = h("button", "small", "Delete");
+      li.appendChild(h("strong", "", q.word)); li.appendChild(h("span", "", " - " + q.meaning));
+      li.appendChild(h("span", "note", " (wrong: " + q.wrong.join(" | ") + ")"));
+      del.type = "button"; del.setAttribute("aria-label", "Delete question " + (i + 1) + ", " + q.word);
+      del.onclick = function () {
+        var next = PGAdvanced.get().customQuestions; next.splice(i, 1);
+        PGAdvanced.set({ customQuestions: next }); drawQuestions(box);
+      };
+      li.appendChild(del); list.appendChild(li);
+    });
+    if (!qs.length) box.appendChild(h("p", "note", "No questions yet."));
+    else box.appendChild(list);
+
+    box.appendChild(h("h4", "", "Add a question"));
+    var form = h("div", "qform"), word = h("input"), meaning = h("input"), wrongBox = h("div", "qwrong"), msg = h("p", "note qmsg");
+    word.type = meaning.type = "text"; word.maxLength = PGAdvanced.MAX_WORD; meaning.maxLength = PGAdvanced.MAX_TEXT;
+    word.placeholder = "Word"; meaning.placeholder = "The right meaning";
+    word.setAttribute("aria-label", "Word"); meaning.setAttribute("aria-label", "The right meaning");
+    msg.setAttribute("role", "alert");
+    var wrongs = [];
+    function drawWrong() {
+      var old = wrongs.map(function (i) { return i.value; });
+      wrongBox.textContent = ""; wrongs = [];
+      for (var k = 0; k < count - 1; k++) {
+        var i = h("input"); i.type = "text"; i.maxLength = PGAdvanced.MAX_TEXT; i.value = old[k] || "";
+        i.placeholder = "Wrong meaning " + (k + 1); i.setAttribute("aria-label", "Wrong meaning " + (k + 1));
+        wrongs.push(i); wrongBox.appendChild(i);
+      }
+    }
+    var cl = h("span", "setlabel", "Choices (the right one plus wrong ones)"), cr = h("div", "row");
+    cl.id = "adv-choices-label"; cr.setAttribute("role", "group"); cr.setAttribute("aria-labelledby", cl.id);
+    var cbtns = [2, 3, 4].map(function (n) {
+      var x = h("button", "small", n + " choices"); x.type = "button"; x.setAttribute("aria-pressed", n === count);
+      x.onclick = function () { count = n; cbtns.forEach(function (b, j) { b.setAttribute("aria-pressed", j + 2 === n); }); drawWrong(); };
+      cr.appendChild(x); return x;
+    });
+    form.appendChild(cl); form.appendChild(cr);
+    form.appendChild(word); form.appendChild(meaning); form.appendChild(wrongBox);
+    drawWrong();
+    var add = h("button", "spin", "Add question"); add.type = "button";
+    add.onclick = function () {
+      var r = PGAdvanced.cleanQuestion({ word: word.value, meaning: meaning.value, wrong: wrongs.map(function (i) { return i.value; }), choices: count });
+      if (r.error) { msg.textContent = "Could not add it: " + r.error + "."; return; }
+      var next = PGAdvanced.get().customQuestions;
+      if (next.length >= PGAdvanced.MAX_QUESTIONS) { msg.textContent = "You can keep up to " + PGAdvanced.MAX_QUESTIONS + " questions."; return; }
+      next.push(r.q);
+      var done = PGAdvanced.set({ customQuestions: next });
+      if (!done.ok) { msg.textContent = "Could not add it: " + done.error; return; }
+      drawQuestions(box);
+      var first = box.querySelector(".qform input"); if (first) first.focus();
+    };
+    form.appendChild(msg); form.appendChild(add); box.appendChild(form);
+
+    box.appendChild(h("h4", "", "Word list (import and export)"));
+    var det = h("details", "qformat"), sum = h("summary", "", "The word list format");
+    det.appendChild(sum);
+    det.appendChild(h("p", "note", "A text file in CSV format (you can make it in any spreadsheet and save as CSV). The first line is exactly:"));
+    det.appendChild(h("pre", "", PGAdvanced.WORDLIST_FORMAT));
+    det.appendChild(h("p", "note", "Every other line is one question: the word, the right meaning, up to three wrong meanings, and how many choices it has (2, 3 or 4). A 2-choice question only needs wrong1, a 3-choice question wrong1 and wrong2; leave the unused boxes empty. Put text that has a comma in double quotes. Example:"));
+    det.appendChild(h("pre", "", "apple,a round fruit that grows on trees,a tool for cutting wood,a kind of fast car,a large body of water,4\nquick,moving fast,not moving at all,,,2"));
+    det.appendChild(h("p", "note", "Importing replaces your current list, and nothing is changed if any line has a problem. Up to " + PGAdvanced.MAX_QUESTIONS + " questions."));
+    box.appendChild(det);
+    var row = h("div", "row"), imp = h("button", "small", "Import word list"), exp = h("button", "small", "Export word list");
+    imp.type = exp.type = "button"; exp.disabled = !qs.length;
+    imp.onclick = function () {
+      PGTransfer.importFile({
+        title: "Import a word list", accept: ".csv,.txt,text/csv,text/plain",
+        note: "Choose a CSV file or paste its text. Format: " + PGAdvanced.WORDLIST_FORMAT + ". This replaces your current questions.",
+        onText: function (t) { return PGAdvanced.importWordlist(t); },
+        onDone: function (r) { drawQuestions(box); var s = box.querySelector(".qstatus"); if (s) s.textContent = "Imported " + r.count + " question" + (r.count === 1 ? "" : "s") + "."; }
+      });
+    };
+    exp.onclick = function () {
+      PGTransfer.exportFile({ title: "Export your word list", filename: "playgloss-word-list.csv", mime: "text/csv", text: PGAdvanced.exportWordlist(),
+        note: "Save this file to keep your questions, or to edit them in a spreadsheet." });
+    };
+    row.appendChild(imp); row.appendChild(exp); box.appendChild(row);
+    status.className = "note qstatus"; box.appendChild(status);
+  }
+
+  /* ---------- export and import of the Custom setup ---------- */
+  // "Custom Mode Configurations" are the Custom setup (mode, Infinite, hearts, target score, time, wheel colors). With Advanced Mode on
+  // they are "Advanced Custom Mode Configurations": the same plus the probabilities, the "?" switch and the questions.
+  var configName = function () { return PGAdvanced.enabled() ? "Advanced Custom Mode Configuration" : "Custom Mode Configuration"; };
+  function configObject() {
+    var c = cfg.custom, advOn = PGAdvanced.enabled();
+    var o = { app: "PlayGloss", kind: advOn ? "advanced-custom-mode" : "custom-mode", version: 1,
+      custom: { extreme: !!c.extreme, inf: !!c.inf, hearts: c.hearts, targetScore: c.targetScore, time: c.time, levelColors: c.levelColors } };
+    if (advOn) o.advanced = PGAdvanced.exportData();
+    return o;
+  }
+  function exportConfig(onDone) {
+    var advOn = PGAdvanced.enabled();
+    PGTransfer.exportFile({
+      title: "Export " + configName(), filename: advOn ? "playgloss-advanced-custom-mode.json" : "playgloss-custom-mode.json",
+      mime: "application/json", text: JSON.stringify(configObject(), null, 2), onDone: onDone,
+      note: "Save this file to use the same setup again, or to share it. Import it later from the same place."
+    });
+  }
+  // Checks the whole file before anything is changed.
+  function importConfigText(text) {
+    var d;
+    try { d = JSON.parse(text); } catch (e) { return { ok: false, error: "that is not a configuration file." }; }
+    if (!d || typeof d !== "object" || d.app !== "PlayGloss" || d.version !== 1 || ["custom-mode", "advanced-custom-mode"].indexOf(d.kind) < 0 || !d.custom || typeof d.custom !== "object")
+      return { ok: false, error: "this is not a PlayGloss configuration file." };
+    var k = Game.cleanCustom({ hearts: d.custom.hearts, targetScore: d.custom.targetScore, time: d.custom.time, levelColors: d.custom.levelColors }), skipped = false;
+    if (d.advanced !== undefined) {
+      if (PGAdvanced.enabled()) { var r = PGAdvanced.importData(d.advanced); if (!r.ok) return { ok: false, error: r.error }; }
+      else skipped = true;
+    }
+    cfg.custom = customOf({ hearts: k.hearts, targetScore: k.targetScore, time: k.time, levelColors: k.levelColors,
+      extreme: d.custom.extreme === true, inf: d.custom.inf === true, color: cfg.custom.color });
+    return { ok: true, skipped: skipped };
+  }
+  function importConfig() {
+    PGTransfer.importFile({
+      title: "Import " + configName(), accept: ".json,application/json,text/plain",
+      note: "Choose a configuration file you exported before, or paste its text. Your current Custom setup is replaced.",
+      onText: importConfigText,
+      onDone: function (r) { drawSetup(); save(); if (r.skipped) notice("The Advanced part of that file was not used because Advanced Mode is off in Settings. The rest was imported."); }
+    });
+  }
+  function drawConfigBox(parent, inAdvanced) {
+    var sec = h("section", "box cfgbox"), t = h("h3", "", PGAdvanced.enabled() ? "Advanced Custom Mode Configurations" : "Custom Mode Configurations");
+    sec.appendChild(t);
+    sec.appendChild(h("p", "note", PGAdvanced.enabled()
+      ? "Export or import everything about this Custom game in one file: the rules from the other tabs, the probabilities, the \"?\" switch and your questions."
+      : "Export or import the setup of this Custom game (the rules and times from the other tabs) as a file. It works the same on Windows, macOS, Linux, Android and in the browser; if saving a file is not possible on your device, copy the text instead."));
+    var row = h("div", "row"), exp = h("button", "spin", "Export"), imp = h("button", "small", "Import");
+    exp.type = imp.type = "button";
+    exp.onclick = function () { exportConfig(); };
+    imp.onclick = importConfig;
+    row.appendChild(exp); row.appendChild(imp); sec.appendChild(row);
+    var lab = h("label", "xfer-check"), cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = !PGAdvanced.get().dontShowExportPrompt;
+    cb.onchange = function () { PGAdvanced.set({ dontShowExportPrompt: !cb.checked }); };
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(" Ask me before each Custom game if I want to export this configuration"));
+    sec.appendChild(lab);
+    parent.appendChild(sec);
+  }
+
+  // The question "Would you like to export this configuration?" before Start game or Host a game in Custom mode.
+  function showExportPrompt(onContinue) {
+    var dlg = $("dlg"), box = $("dlg-btns"), finished = false;
+    $("dlg-text").textContent = "Would you like to export this configuration?";
+    box.textContent = ""; dlg.oncancel = null; // Escape closes the question and the game does not start
+    var chk = h("label", "xfer-check"), cb = document.createElement("input");
+    cb.type = "checkbox"; chk.appendChild(cb); chk.appendChild(document.createTextNode(" Don't show this again"));
+    function done(exportIt) {
+      if (finished) return; finished = true;
+      if (cb.checked) PGAdvanced.set({ dontShowExportPrompt: true });
+      dlg.close();
+      if (exportIt) exportConfig(onContinue); else onContinue();
+    }
+    var yes = h("button", "spin", "Export, then continue"), no = h("button", "small", "Continue without exporting");
+    yes.type = no.type = "button"; yes.onclick = function () { done(true); }; no.onclick = function () { done(false); };
+    box.appendChild(chk); box.appendChild(yes); box.appendChild(no);
+    dlg.showModal(); yes.focus();
+  }
+
+  // Something in the Advanced tab stops the game from starting: returns the reason, or "".
+  function advProblem() {
+    if (!cfg.customOn || !PGAdvanced.enabled()) return "";
+    if (advDraft && draftTotal() !== 10000) return "The probabilities in the Advanced tab add up to " + pct(draftTotal()) + "%. They must add up to exactly 100%.";
+    var a = PGAdvanced.get();
+    if (a.questionsMode === "custom" && !a.customQuestions.length) return "Questions is set to Custom, but there are no questions yet. Add some in the Advanced tab, or set Questions back to Default.";
+    return "";
+  }
+  function notice(text) { warn(text); }
+
 
   /* ---------- the "Online" option: host a game, or join one ---------- */
   function drawOnline(box) {
@@ -338,7 +617,11 @@
       box.appendChild(panels);
     }
     var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
-    hostBtn.onclick = startHosting;
+    hostBtn.onclick = function () {
+      var problem = advProblem();
+      if (problem) return notice(problem);
+      if (cfg.customOn && !PGAdvanced.get().dontShowExportPrompt) showExportPrompt(startHosting); else startHosting();
+    };
     box.appendChild(h("div", "row")).appendChild(hostBtn);
     box.appendChild(h("p", "note", "Players on the same Wi-Fi join with your link or QR code. You approve every guest. Nothing goes over the internet."));
   }
@@ -493,7 +776,8 @@
     pickers.push(pk); p.appendChild(pk.el);
     return p;
   }
-  function warn() { var d = $("warn"); if (!d.open) d.showModal(); }
+  var NAME_WARNING = "That name is not allowed. Please choose a different one.";
+  function warn(text) { var d = $("warn"); $("warn-text").textContent = text || NAME_WARNING; if (!d.open) d.showModal(); }
 
   var startNote = function (game) {
     if (game.inf) return "Infinite: everyone has " + Game.heartsOf(game) + " hearts. A wrong answer or time up costs one heart.";
@@ -511,6 +795,8 @@
       teams.push({ name:name, fmt:t.fmt, color:t.color, players:players, pfmt:two ? t.pfmt.slice() : [t.fmt] });
     }
     if (bad) return warn();
+    var problem = advProblem();
+    if (problem) return notice(problem);
     var go = function (order) {
       resetFlow();
       var run = localRun();
@@ -518,14 +804,18 @@
       sd = null; used = {}; busy = false; tab = "game"; say(startNote(g));
       $("setup").hidden = true; $("game").hidden = false; render();
     };
-    if (solo) return go(null);
-    var d = two ? Game.drawOrder(teams) : Game.drawFirst(teams), ul = $("order-log");
-    $("order-note").textContent = two ? "Everyone draws a number from 0 to 9. The team with the higher total goes first."
-      : "Each player draws a number from 0 to 9. The higher number goes first.";
-    ul.textContent = "";
-    d.log.forEach(function (x) { ul.appendChild(h("li", "", x)); });
-    $("order").hidden = false; $("order-go").focus();
-    $("order-go").onclick = function () { $("order").hidden = true; go(d.order); };
+    var begin = function () {
+      if (solo) return go(null);
+      var d = two ? Game.drawOrder(teams) : Game.drawFirst(teams), ul = $("order-log");
+      $("order-note").textContent = two ? "Everyone draws a number from 0 to 9. The team with the higher total goes first."
+        : "Each player draws a number from 0 to 9. The higher number goes first.";
+      ul.textContent = "";
+      d.log.forEach(function (x) { ul.appendChild(h("li", "", x)); });
+      $("order").hidden = false; $("order-go").focus();
+      $("order-go").onclick = function () { $("order").hidden = true; go(d.order); };
+    };
+    // Custom games ask first whether to export the configuration (unless the player ticked "Don't show this again").
+    if (cfg.customOn && !PGAdvanced.get().dontShowExportPrompt) showExportPrompt(begin); else begin();
   }
 
   /* ---------- HOSTING: start the LAN server ---------- */
@@ -950,7 +1240,7 @@
   function spin() {
     if (!idle() || g.over) return;
     busy = true; say(""); render();
-    var res = Wheel.pick(g.extreme), i = SL.indexOf(res), a = 360 / SL.length;
+    var res = Wheel.pick(g.extreme, g.custom && g.custom.adv), i = SL.indexOf(res), a = 360 / SL.length; // the wheel is drawn with equal slices; the odds only decide where it stops
     var want = ((-(i + .5) * a) % 360 + 360) % 360, cur = ((rot % 360) + 360) % 360;
     rot += ((want - cur + 360) % 360) + 1800;
     var rm = matchMedia("(prefers-reduced-motion: reduce)").matches, w = $("wheel");
@@ -1004,7 +1294,7 @@
   // The question. The host picks the word once. If a guest plays this turn, only that guest sees the words and
   // answers; the host's screen shows a status line and judges the answer. Otherwise the host's screen asks.
   function askQuestion(lv) {
-    var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv, g.extreme);
+    var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv, g.extreme, g);
     var announce = function (ok, k, pts) {
       say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "." +
         (g.inf && !ok ? " " + p.name + " loses a heart (" + p.hearts + " left)." : "")); // the heart is already taken off when this runs

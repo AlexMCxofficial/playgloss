@@ -1,20 +1,37 @@
+/* The text size setting (Settings > General > Fonts) scales every rem in this file, so the whole app follows it. */
 :root{
   --bg:#000;--fg:#fff;--muted:#b8bcc4;--surface:#1c1c21;--border:#33353d;
   --accent:#1565c0;--on-accent:#fff;
+  --font-family:Lato,"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --font-size:1;
+  --bg-image:none;--bg-fit:cover;--bg-blur:0px;
   color-scheme:dark;
 }
 :root[data-theme="light"]{
   --bg:#fff;--fg:#111;--muted:#4a4f58;--surface:#f1f2f4;--border:#d3d6db;
   color-scheme:light;
 }
+@font-face{font-family:"Fira Code";font-style:normal;font-weight:300 700;font-display:swap;src:local("Fira Code"),url("../fonts/fira-code-latin-wght-normal.woff2") format("woff2")}
+@font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:100 800;font-display:swap;src:local("JetBrains Mono"),url("../fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2")}
 *{box-sizing:border-box}
+html{font-size:calc(100% * var(--font-size))}
 html,body{height:100%}
 body{
   margin:0;display:flex;flex-direction:column;
   background:var(--bg);color:var(--fg);
-  font-family:Lato,"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-family:var(--font-family);
   font-size:1rem;line-height:1.5;
 }
+/* The player's own picture (Settings > General > Background) sits behind everything, under a light veil so text stays readable. */
+html[data-bg="image"] body{background:transparent}
+html[data-bg="image"] body::before{
+  content:"";position:fixed;inset:-40px;z-index:-1;pointer-events:none;
+  background-color:var(--bg);
+  background-image:linear-gradient(color-mix(in srgb,var(--bg) 30%,transparent),color-mix(in srgb,var(--bg) 30%,transparent)),var(--bg-image);
+  background-size:cover,var(--bg-fit);background-position:center;background-repeat:no-repeat;
+  filter:blur(var(--bg-blur));
+}
+html[data-bg="image"]{background:var(--bg)}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 
@@ -274,6 +291,7 @@ dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
 .setrow{display:grid;grid-template-columns:6rem 1fr;gap:.75rem;align-items:center;margin:.9rem 0}
 .setrow .row{margin-top:0;justify-content:flex-start}
 .setlabel{font-weight:700}
+.setrow[hidden],.setcustom[hidden]{display:none}
 .setcustom{max-width:24rem;margin:.5rem 0 1rem;padding:.75rem;background:var(--surface);border:1px solid var(--border);border-radius:12px}
 .settings .note{margin:.5rem 0}
 @media (max-width:520px){.setrow{grid-template-columns:1fr}}
@@ -361,3 +379,45 @@ dialog.warn .small{background:#fff;color:#8b1a1a;border-color:#fff}
   .cview{padding:.6rem}
   .tgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* 0.1.6: fonts, background and Advanced Mode */
+input,textarea,select,button{font-family:inherit}
+.sep{margin:1.5rem 0;border:0;border-top:1px solid var(--border)}
+.slidebox{align-items:center;gap:.75rem}
+.slidebox input[type=range]{flex:1;min-width:8rem;max-width:18rem;accent-color:var(--accent)}
+.numbox{display:inline-flex;align-items:center;gap:.35rem}
+.numbox input,.filebox input[type=file],.advin,.qform input,.xfer-text{
+  min-height:44px;padding:0 .75rem;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
+.numbox input{width:5.5rem;text-align:center}
+.filebox{gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
+.filebox input[type=file]{flex:1;min-width:12rem;padding:.5rem}
+#bg-blur-value{min-width:2rem;text-align:right;font-variant-numeric:tabular-nums}
+.bgpreview{margin-top:.75rem;max-width:100%;border-radius:8px;overflow:hidden}
+.bgpreview[hidden]{display:none}
+.bgpreview img{width:100%;max-height:14rem;object-fit:contain;display:block;background:var(--surface)}
+.advremain{margin:.75rem 0;padding:.6rem .8rem;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-weight:700}
+.advremain.ok{border-color:#2e9e44}
+.advremain.low{border-color:#f2d024}
+.advremain.high{border-color:#e03131}
+.advtable{width:100%;border-collapse:collapse}
+.advtable th,.advtable td{padding:.3rem .4rem;text-align:left;vertical-align:middle}
+.advtable tbody th{font-weight:500}
+.advin{width:7rem;text-align:right}
+.advmax{color:var(--muted);font-variant-numeric:tabular-nums}
+.qbox{margin:.5rem 0 1rem}
+.qlist{padding-left:1.25rem}
+.qitem{margin:.5rem 0;overflow-wrap:anywhere}
+.qitem .small{margin-left:.5rem}
+.qform{display:grid;gap:.5rem;max-width:32rem}
+.qform .setlabel{margin-top:.25rem}
+.qwrong{display:grid;gap:.5rem}
+.qformat pre{margin:.25rem 0;padding:.6rem .8rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.cfgbox{margin-top:1rem}
+.xfer-check{display:flex;align-items:center;gap:.5rem;margin:.75rem 0}
+.xfer-check input{width:1.25rem;height:1.25rem;accent-color:var(--accent)}
+dialog.xfer{max-width:min(36rem,92vw);width:100%;padding:1.25rem;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--fg)}
+dialog.xfer::backdrop{background:#000a}
+dialog.xfer h2{margin:0 0 .5rem;font-size:1.25rem}
+.xfer-body{display:grid;gap:.6rem}
+.xfer-text{width:100%;padding:.6rem .75rem;font-family:ui-monospace,Consolas,monospace;font-size:.85rem;resize:vertical}
+.xfer-msg{min-height:1.4em}

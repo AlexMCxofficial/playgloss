@@ -15,6 +15,10 @@
 //   targetScore 100 to 1000 in steps of 50, only used when Infinite is off (every other mode has 100)
 //   time        how long a question lasts: "very-easy" (longest) to "impossible" (shortest), see TIMES below
 //   levelColors { levelId: "#rrggbb" } colors of the eight level slices on the wheel (looks only)
+// 0.1.6 adds an optional Advanced Mode part, g.custom.adv (left out when Advanced Mode is off):
+//   weights   { id: percent } for the eight levels, 2x, 3x, Shield and Free 5: two decimals, adding up to exactly 100
+//   egg       false turns the Easter egg off
+//   questions "custom" asks the player's own questions (the questions themselves stay on the host's device)
 // Hearts exist if and only if Infinite is on, in every mode.
 var Game = (function () {
   var MULT = { x2:2, x3:3, shield:1 };
@@ -35,7 +39,30 @@ var Game = (function () {
       if (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v)) colors[id] = v.toLowerCase();
     });
     var time = TIMES.some(function (t) { return t[0] === c.time; }) ? c.time : "normal";
-    return { hearts:n(c.hearts, 1, 10, 1, HEARTS), targetScore:n(c.targetScore, 100, 1000, 50, TARGET), time:time, levelColors:colors };
+    var out = { hearts:n(c.hearts, 1, 10, 1, HEARTS), targetScore:n(c.targetScore, 100, 1000, 50, TARGET), time:time, levelColors:colors };
+    var adv = cleanAdv(c.adv);
+    if (adv) out.adv = adv;
+    return out;
+  }
+  // The twelve slices whose chance the player sets in Advanced Mode (the Easter egg's chance is fixed).
+  var ADV_IDS = LEVELS.concat(["x2", "x3", "shield", "free"]);
+  // Advanced Mode setup -> clean copy or null. The weights are only kept when every one is a number from 0 to 100 with at
+  // most two decimals and they add up to exactly 100 (counted in hundredths, so there is no rounding error).
+  function cleanAdv(a) {
+    if (!a || typeof a !== "object") return null;
+    var out = {}, any = false;
+    if (a.weights && typeof a.weights === "object") {
+      var w = {}, sum = 0, ok = true;
+      ADV_IDS.forEach(function (id) {
+        var v = a.weights[id], cents = typeof v === "number" ? Math.round(v * 100) : NaN;
+        if (!isFinite(cents) || cents < 0 || cents > 10000 || Math.abs(v * 100 - cents) > 1e-6) { ok = false; return; }
+        w[id] = cents / 100; sum += cents;
+      });
+      if (ok && sum === 10000) { out.weights = w; any = true; }
+    }
+    if (a.egg === false) { out.egg = false; any = true; }
+    if (a.questions === "custom") { out.questions = "custom"; any = true; }
+    return any ? out : null;
   }
   // Seconds for a question of this level in this game.
   function seconds(g, lv) {
@@ -239,5 +266,5 @@ var Game = (function () {
 
   return { create:create, teamScore:teamScore, rep:rep, grant:grant, arm:arm, answer:answer,
     endTurn:endTurn, resign:resign, draw:draw, value:value, drawOrder:drawOrder, drawFirst:drawFirst,
-    cleanCustom:cleanCustom, seconds:seconds, targetOf:targetOf, heartsOf:heartsOf, TIMES:TIMES, LEVELS:LEVELS };
+    cleanCustom:cleanCustom, cleanAdv:cleanAdv, ADV_IDS:ADV_IDS, seconds:seconds, targetOf:targetOf, heartsOf:heartsOf, TIMES:TIMES, LEVELS:LEVELS };
 })();
