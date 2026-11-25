@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="PlayGloss">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
+<script src="js/docsprefs.js"></script>
 <script src="js/pwa.js"></script>
 <script src="js/app.js"></script>
 </head>
@@ -123,6 +124,21 @@
 </div>
 
 <p class="note"><strong>Scheme</strong> uses the background of your color scheme (the default). <strong>Color</strong> paints the page with one solid color. <strong>Image</strong> shows your own picture behind the app: <em>Cover</em> fills the whole screen and crops the edges, <em>Contain</em> shows the whole picture and fills the rest with the scheme color. <strong>Blur</strong> softens the background, from 0 (off, the default) to 10 (strongest); it is available for the Image type.</p>
+
+<hr class="sep">
+
+<h3 id="docs-navigation">Documentation</h3>
+
+<div class="setrow" id="docs-side-row">
+<span class="setlabel" id="docs-side-label">Navigation</span>
+<div class="row" role="group" aria-labelledby="docs-side-label">
+<button class="small" type="button" data-docs-side-set="left">Left</button>
+<button class="small" type="button" data-docs-side-set="right">Right</button>
+</div>
+</div>
+
+<p class="note" id="docs-side-note">Choose which side the Documentation navigation sits on. On large screens it is a sidebar that you can switch on or off with the sidebar icon on the Documentation page; on tablets it is a drawer that opens with the Contents button.</p>
+<p class="note" id="docs-side-phone" hidden>On phones the navigation is always on the left, so this choice is greyed out.</p>
 </section>
 
 <section aria-labelledby="modes">

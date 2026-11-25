@@ -47,12 +47,15 @@
     if ($("font-size-input") !== document.activeElement) $("font-size-input").value = pct;
 
     // Background
+    // The saved type can only be "image" once a picture exists (theme.js enforces this), so while the player is choosing
+    // the first picture the page shows Image as the selected type without saving it yet.
     buttons($("bg-type-buttons"), BG_LABELS, "data-bg-type-set");
-    pressed("data-bg-type-set", s.bgType);
-    $("bg-color-box").hidden = s.bgType !== "color";
-    $("bg-image-box").hidden = s.bgType !== "image" && !imageBoxOpen;
-    $("bg-fit-row").hidden = s.bgType !== "image";
-    $("bg-blur-row").hidden = s.bgType !== "image";
+    var view = imageBoxOpen ? "image" : s.bgType;
+    pressed("data-bg-type-set", view);
+    $("bg-color-box").hidden = view !== "color";
+    $("bg-image-box").hidden = view !== "image";
+    $("bg-fit-row").hidden = view !== "image" || s.bgType !== "image";
+    $("bg-blur-row").hidden = view !== "image" || s.bgType !== "image";
     if (s.bgType === "color") {
       if (!bgPicker) {
         bgPicker = ColorPicker.create({
@@ -96,6 +99,17 @@
     });
     $("online-web").hidden = APP;
     $("online-on").hidden = !on;
+  }
+
+  // Documentation navigation side (kept by docsprefs.js). Phones always use the left, so the choice is greyed out there.
+  function paintDocsSide() {
+    var phone = PGDocs.isPhone(), side = PGDocs.side();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-docs-side-set]"), function (b) {
+      b.setAttribute("aria-pressed", b.dataset.docsSideSet === (phone ? "left" : side));
+      b.disabled = phone;
+    });
+    $("docs-side-row").classList.toggle("is-off", phone);
+    $("docs-side-phone").hidden = !phone;
   }
 
   // Advanced Mode (kept by advanced.js; off unless the person turns it on)
@@ -142,7 +156,9 @@
     var md = e.target.closest("button[data-mode-set]"), inf = e.target.closest("button[data-infinite-set]");
     var fnt = e.target.closest("button[data-font-set]"), bgType = e.target.closest("button[data-bg-type-set]");
     var bgFit = e.target.closest("button[data-bg-fit]"), adv = e.target.closest("button[data-advanced-set]");
-    if (md) PGMode.set({ mode: md.dataset.modeSet });
+    var docsSide = e.target.closest("button[data-docs-side-set]");
+    if (docsSide) { if (!PGDocs.isPhone()) PGDocs.setSide(docsSide.dataset.docsSideSet); }
+    else if (md) PGMode.set({ mode: md.dataset.modeSet });
     else if (inf) PGMode.set({ infinite: inf.dataset.infiniteSet === "on" });
     else if (t) PGTheme.set({ theme: t.dataset.themeSet });
     else if (c) PGTheme.set({ scheme: c.dataset.schemeSet });
@@ -199,6 +215,8 @@
 
   PGTheme.subscribe(paint);
   PGMode.subscribe(paintModes);
+  PGDocs.subscribe(paintDocsSide);
+  paintDocsSide();
   paint();
   paintModes();
   paintOnline();
