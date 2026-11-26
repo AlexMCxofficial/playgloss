@@ -19,6 +19,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check release version
+        run: node tools/check-release-version.js
+
       - name: Run the tests
         shell: bash
         run: |
@@ -36,7 +39,10 @@ jobs:
           workspaces: src-tauri
           key: windows-32bit
 
-      - run: npm install
+      - run: npm ci
+
+      - name: Test 32-bit native code
+        run: cargo test --locked --lib --target i686-pc-windows-msvc --manifest-path src-tauri/Cargo.toml
 
       - run: npx tauri build --bundles nsis --target i686-pc-windows-msvc
 

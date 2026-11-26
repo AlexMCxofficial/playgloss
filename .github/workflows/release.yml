@@ -35,6 +35,9 @@ jobs:
         with:
           node-version: 20
 
+      - name: Check release version
+        run: node tools/check-release-version.js
+
       - name: Run the tests
         shell: bash
         run: |
@@ -57,7 +60,10 @@ jobs:
         with:
           workspaces: src-tauri
 
-      - run: npm install
+      - run: npm ci
+
+      - name: Test desktop native code
+        run: cargo test --locked --lib --manifest-path src-tauri/Cargo.toml
 
       - run: npx tauri build ${{ matrix.args }}
 
@@ -71,7 +77,14 @@ jobs:
             \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.AppImage" \) \
             -exec cp {} dist/ \;
           ls -l dist
-          test -n "$(ls -A dist)"
+          case "${{ matrix.os }}" in
+            windows-*) test -n "$(find dist -maxdepth 1 -name '*.exe' -print -quit)" ;;
+            macos-*) test -n "$(find dist -maxdepth 1 -name '*.dmg' -print -quit)" ;;
+            ubuntu-*)
+              test -n "$(find dist -maxdepth 1 -name '*.deb' -print -quit)"
+              test -n "$(find dist -maxdepth 1 -name '*.AppImage' -print -quit)"
+              ;;
+          esac
 
       - uses: actions/upload-artifact@v4
         with:
