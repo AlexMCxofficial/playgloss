@@ -1,0 +1,1 @@
+The launcher icon now shows the PlayGloss wheel on its blue background. A new startup splash screen follows your Light or Dark theme. Turn it off under Settings → General → Startup splash screen.
