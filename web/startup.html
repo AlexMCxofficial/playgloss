@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PlayGloss</title>
+<script src="js/theme.js"></script>
+<script src="js/splash.js" defer></script>
+<style>
+  html { background: #000; color: #fff; color-scheme: dark; }
+  html[data-theme="light"] { background: #fff; color: #000; color-scheme: light; }
+  body { margin: 0; font-family: system-ui, sans-serif; }
+  main:not([hidden]) {
+    min-height: 100vh;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 1rem;
+    text-align: center;
+  }
+  h1 { margin: 0; font-size: clamp(2rem, 8vw, 3rem); }
+  img { width: clamp(7rem, 32vw, 10rem); height: auto; }
+</style>
+</head>
+<body>
+<main id="startup-splash" hidden>
+<h1>PlayGloss</h1>
+<img src="logo.svg" width="200" height="200" alt="">
+</main>
+</body>
+</html>

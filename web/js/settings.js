@@ -90,6 +90,15 @@
   // Play Online (opt-in). Off unless the person turns it on, and only the apps can host, so the
   // website keeps it off. The choice stays on this device, and the Play page reads the same key.
   var APP = !!window.__TAURI__;
+  function paintSplash() {
+    var on = PGSplash.enabled();
+    Array.prototype.forEach.call(document.querySelectorAll("[data-splash-set]"), function (b) {
+      b.setAttribute("aria-pressed", (b.dataset.splashSet === "on") === on);
+      b.disabled = !APP;
+    });
+    $("splash-web").hidden = APP;
+  }
+
   function onlineOn() { try { return APP && localStorage.getItem("online") === "1"; } catch (e) { return false; } }
   function paintOnline() {
     var on = onlineOn();
@@ -157,7 +166,9 @@
     var fnt = e.target.closest("button[data-font-set]"), bgType = e.target.closest("button[data-bg-type-set]");
     var bgFit = e.target.closest("button[data-bg-fit]"), adv = e.target.closest("button[data-advanced-set]");
     var docsSide = e.target.closest("button[data-docs-side-set]");
+    var splash = e.target.closest("button[data-splash-set]");
     if (docsSide) { if (!PGDocs.isPhone()) PGDocs.setSide(docsSide.dataset.docsSideSet); }
+    else if (splash && APP) { PGSplash.setEnabled(splash.dataset.splashSet === "on"); paintSplash(); }
     else if (md) PGMode.set({ mode: md.dataset.modeSet });
     else if (inf) PGMode.set({ infinite: inf.dataset.infiniteSet === "on" });
     else if (t) PGTheme.set({ theme: t.dataset.themeSet });
@@ -219,6 +230,7 @@
   paintDocsSide();
   paint();
   paintModes();
+  paintSplash();
   paintOnline();
   paintAdvanced();
 })();
