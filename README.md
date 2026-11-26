@@ -12,6 +12,10 @@ An English guess-the-meaning game for one to four players sharing one screen. Sp
 
 Installers are on the [Releases page](https://github.com/AlexMCxofficial/playgloss/releases).
 
+PlayGloss 0.1.8 has rounded desktop icons and a blue PlayGloss launcher icon on Android.
+
+In the Windows installer, select **Acknowledge** after reviewing the MIT License. **Launch PlayGloss** is checked by default, and you can opt in to a desktop shortcut on the final screen.
+
 | Platform                          | Hardware                | Format                               | Status                                    |
 | --------------------------------- | ----------------------- | ------------------------------------ | ----------------------------------------- |
 | Windows 10 and 11                 | 64-bit                  | `.exe` installer                     | Tested                                    |
@@ -61,6 +65,7 @@ In 1 vs 1 and 2 vs 2 a random draw from 0 to 9 decides who goes first, and the p
   - **Advanced Custom Mode Configurations**: export or import the whole Custom setup plus the Advanced settings as one JSON file. Without Advanced Mode the same box is called **Custom Mode Configurations**. Saving a file, sharing it or copying the text all work on Windows, macOS, Linux, Android and in the browser.
   - **Export question**: before every Start game or Host a game with Custom rules, with or without Advanced Mode, PlayGloss asks "Would you like to export this configuration?". Tick "Don't show this again" to stop it (you can turn it back on in the same box).
 - **Documentation navigation (0.1.7):** the Documentation page has tabs and sub-tabs (Getting Started, Game Modes, Settings, Online Play, Download and Install, Privacy and Legal) and a search bar. On large screens it is a sidebar with a toggle icon, and Settings → General → Documentation puts it on the left or the right. On tablets and phones it is a drawer opened with the Contents button (always on the left on phones, where the choice is greyed out). Fixed: choosing Image as the background type in Settings now shows the picture picker and highlights Image.
+- **App startup (0.1.8).** PlayGloss briefly shows its logo on launch and uses your saved Light or Dark theme. Turn it off under **Settings → General → Startup splash screen**. The website shows this setting disabled.
 - **Online modes:** the host chooses Default, Extreme or Custom and Infinite in the Host a game tab; joining players see the same rules. The host can also set the guests' **Color** to Extreme: every guest gets the Extreme look (dark red), the host's own look never changes, and guests can still switch to light (Dark brings Extreme back). The lobby's Connection section helps identify open Wi-Fi, password Wi-Fi or a login-page network. For a login-page network you can note the Wi-Fi name, username (for example `ssxxxxx` at a school) and password on the host's screen. Wi-Fi names, usernames and passwords are not stored or sent by PlayGloss.
 - **Winning:** when someone reaches 100, the round finishes so everyone gets the same number of turns. The higher score wins, and a tie goes to a sudden-death spin.
 - **Switching pages:** open Home or Documentation and come back, and your game is still there for as long as the tab or window stays open.
@@ -104,8 +109,12 @@ You need Rust and your system's Tauri prerequisites first. GitHub Actions builds
 
 - **Build desktop apps:** Windows 64-bit `.exe`, macOS `.dmg`, Linux `.deb` and `.AppImage`
 - **Build Windows 32-bit app:** the 32-bit `.exe`
-- **Build Android app:** the signed `.apk` (needs signing secrets in the repository settings)
+- **Build Android APK:** the signed `.apk` (needs signing secrets in the repository settings)
 - **Deploy website:** publishes `web/` to GitHub Pages whenever it changes
+
+For local Android builds, copy the PlayGloss launcher resources into the project after running `npx tauri android init`. The Android workflow does this before building the APK.
+
+    cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
 
 ## Project layout
 
