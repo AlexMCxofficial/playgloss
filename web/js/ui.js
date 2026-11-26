@@ -7,6 +7,7 @@
   var MODES = [["solo","Solo"],["1v1","1 vs 1"],["2v2","2 vs 2"]]; // Custom is a rules switch (cfg.customOn) on top of these
   var STYLES = [["b","Bold"],["i","Italic"],["u","Underline"]];
   var cfg = defaults(), g = null, sd = null, used = Overlays.used, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
+  var quizSelected = false, quizCapacity = 0, quizSettings = null;
   var customTab = "general", wheelKey = null; // customTab: the open tab of the Custom setup. wheelKey: which colors the wheel is drawn with
 
   // Online play state
@@ -125,6 +126,8 @@
   // Seat number = player number. A player is "remote" while a guest on another device holds that seat: only that
   // guest may spin, answer, use power-ups, offer or answer a draw and resign for them, never the host's screen.
   // A seat nobody holds (this device, or its guest was removed) is played from the host's screen.
+  function quizOn() { return quizSelected && quizCapacity >= 2 && cfg.customOn && PGQuiz.enabled(); }
+
   function remote(pi) { return !!(host && host.session && host.session.phase === "game" && host.session.guestOf(pi)); }
   function idle() { return !busy && !offering; }
   function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
@@ -193,12 +196,14 @@
   // (Play > Custom) and in the Online > Host a game form (online = true), where General also has the guests' Color.
   // Advanced tab only appears when Advanced Mode is ON in Settings.
   function drawCustom(box, online) {
-    var c = cfg.custom, tabs = h("div", "ctabs"), views = h("div", "cviews"), btns = {}, vs = {};
-    var advMode = PGAdvanced.enabled();
+    var tabs = h("div", "ctabs"), views = h("div", "cviews"), btns = {}, vs = {};
+    var advMode = PGAdvanced.enabled(), quiz = online && quizOn();
+    var c = quiz ? quizSettings.rules : cfg.custom;
+    var saveRules = quiz ? saveQuiz : save;
     advDraft = null;
     var names = [["general", "General"], ["time", "Time"], ["colors", "Colors"]];
     if (advMode) names.push(["advanced", "Advanced"]);
-    names.push(["teams", "Teams"]);
+    if (!quiz) names.push(["teams", "Teams"]);
     tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "Custom settings");
     function show(k) {
       customTab = k;
@@ -230,7 +235,7 @@
       row.setAttribute("role", "group"); row.setAttribute("aria-labelledby", lab.id);
       list.forEach(function (m) {
         var x = h("button", "small", m[1]); x.type = "button"; x.setAttribute("aria-pressed", isOn(m[0]));
-        x.onclick = function () { pick(m[0]); drawSetup(); save(); };
+        x.onclick = function () { pick(m[0]); drawSetup(); saveRules(); };
         row.appendChild(x);
       });
       parent.appendChild(lab); parent.appendChild(row);
@@ -248,14 +253,16 @@
     // General: modes, Infinite, hearts (Infinite on) or target score (Infinite off)
     var gen = vs.general;
     choice(gen, "Mode", [["default", "Default"], ["extreme", "Extreme"]], function (k) { return c.extreme === (k === "extreme"); }, function (k) { c.extreme = k === "extreme"; });
-    choice(gen, "Infinite", [[false, "Off"], [true, "On"]], function (k) { return c.inf === k; }, function (k) { c.inf = k; });
-    if (c.inf) slider(gen, "Hearts per player", 1, 10, 1, c.hearts, "", function (v) { c.hearts = v; });
-    else slider(gen, "Target score", 100, 1000, 50, c.targetScore, "points", function (v) { c.targetScore = v; });
-    gen.appendChild(h("p", "note", c.inf
-      ? "Infinite: no target score. A wrong answer or time up costs a heart, and a player with no hearts is out."
-      : "The first side to reach the target score wins (the round is finished first, as in the other modes)."));
+    if (!quiz) {
+      choice(gen, "Infinite", [[false, "Off"], [true, "On"]], function (k) { return c.inf === k; }, function (k) { c.inf = k; });
+      if (c.inf) slider(gen, "Hearts per player", 1, 10, 1, c.hearts, "", function (v) { c.hearts = v; });
+      else slider(gen, "Target score", 100, 1000, 50, c.targetScore, "points", function (v) { c.targetScore = v; });
+      gen.appendChild(h("p", "note", c.inf
+        ? "Infinite: no target score. A wrong answer or time up costs a heart, and a player with no hearts is out."
+        : "The first side to reach the target score wins (the round is finished first, as in the other modes)."));
+    }
     gen.appendChild(h("p", "note", "Extreme flips how often the levels come up, so Impossible comes as often as Very Easy does in Default."));
-    if (online) {
+    if (online && !quiz) {
       choice(gen, "Color (guests)", [["default", "Default"], ["extreme", "Extreme"]], function (k) { return c.color === k; }, function (k) { c.color = k; });
       gen.appendChild(h("p", "note", "Default: guests keep their own theme. Extreme: all guests see the Extreme theme (dark red). Your own theme is never affected, and guests can still switch to light."));
     }
@@ -267,7 +274,7 @@
     grid.setAttribute("role", "group"); grid.setAttribute("aria-label", "Time to answer");
     Game.TIMES.forEach(function (t) {
       var x = h("button", "small", t[1]); x.type = "button"; x.setAttribute("aria-pressed", c.time === t[0]);
-      x.onclick = function () { c.time = t[0]; drawSetup(); save(); };
+      x.onclick = function () { c.time = t[0]; drawSetup(); saveRules(); };
       grid.appendChild(x);
     });
     tim.appendChild(grid);
@@ -291,24 +298,26 @@
       var d = h("details", "lvcolor"), sm = h("summary"), chip = h("span", "cp-chip"), cur = c.levelColors[lv.id] || lv.color;
       chip.style.backgroundColor = cur;
       sm.appendChild(chip); sm.appendChild(h("span", "", lv.name)); d.appendChild(sm);
-      var pk = CP.create({ value:cur, onChange:function (hex) { c.levelColors[lv.id] = hex; chip.style.backgroundColor = hex; reset.disabled = false; save(); } });
+      var pk = CP.create({ value:cur, onChange:function (hex) { c.levelColors[lv.id] = hex; chip.style.backgroundColor = hex; reset.disabled = false; saveRules(); } });
       d.appendChild(pk.el); col.appendChild(d);
     });
     var reset = h("button", "small", "Reset to default colors"); reset.type = "button";
     reset.disabled = !Object.keys(c.levelColors).length;
-    reset.onclick = function () { c.levelColors = {}; drawSetup(); save(); };
+    reset.onclick = function () { c.levelColors = {}; drawSetup(); saveRules(); };
     reset.dataset.role = "reset";
     col.appendChild(h("div", "row")).appendChild(reset);
 
     // The configuration export and import: in the Advanced tab when Advanced Mode is on, at the end of General when it is off
-    if (advMode) drawAdvancedTab(vs.advanced);
+    if (advMode) drawAdvancedTab(vs.advanced, online, quiz);
     else drawConfigBox(gen, false);
 
     // Teams: the sides of the chosen mode (one for Solo, two for 1 vs 1, two teams of two for 2 vs 2)
     var tm2 = vs.teams, panels = h("div", "panels");
-    tm2.appendChild(h("p", "note", "Custom rules are played as " + (cfg.mode === "solo" ? "Solo." : cfg.mode === "1v1" ? "1 vs 1." : "2 vs 2: two teams of two.")));
-    for (var ti = 0; ti < (cfg.mode === "solo" ? 1 : 2); ti++) panels.appendChild(panel(ti));
-    tm2.appendChild(panels);
+    if (tm2) {
+      tm2.appendChild(h("p", "note", "Custom rules are played as " + (cfg.mode === "solo" ? "Solo." : cfg.mode === "1v1" ? "1 vs 1." : "2 vs 2: two teams of two.")));
+      for (var ti = 0; ti < (cfg.mode === "solo" ? 1 : 2); ti++) panels.appendChild(panel(ti));
+      tm2.appendChild(panels);
+    }
 
     show(names.some(function (t) { return t[0] === customTab; }) ? customTab : "general");
   }
@@ -319,7 +328,7 @@
   var advDraft = null;
   var cents = function (v) { return Math.round(v * 100); };
   var pct = function (c) { return (c / 100).toFixed(2); };
-  function draftTotal() { return PGAdvanced.ALL_IDS.reduce(function (s, id) { return s + advDraft[id]; }, 0); }
+  function draftTotal() { return Object.keys(advDraft).reduce(function (s, id) { return s + advDraft[id]; }, 0); }
 
   // Label and two or more buttons in one group (no redraw: only the pressed state changes).
   function pair(parent, label, items, current, pick) {
@@ -334,19 +343,61 @@
     parent.appendChild(lab); parent.appendChild(row);
   }
 
-  function drawAdvancedTab(parent) {
-    var adv = PGAdvanced.get(), ids = PGAdvanced.ALL_IDS, inputs = {}, maxCells = {}, names = {};
+  function saveQuiz() {
+    try { PGQuiz.save(quizSettings); }
+    catch (err) { notice("Settings could not be saved in this window."); }
+  }
+
+  function drawLayout(parent, available, selected, disableAll) {
+    parent.appendChild(h("h3", "", "Layout"));
+    var row = h("div", "row");
+    row.setAttribute("role", "group"); row.setAttribute("aria-label", "Layout");
+    [["Traditional", false], ["Kahoot-like", true]].forEach(function (item) {
+      var b = h("button", "small", item[0]); b.type = "button";
+      b.setAttribute("aria-pressed", selected === item[1]);
+      b.disabled = !!disableAll || (item[1] && !available);
+      b.onclick = function () {
+        quizSelected = item[1];
+        customTab = "advanced";
+        drawSetup();
+      };
+      row.appendChild(b);
+    });
+    parent.appendChild(row);
+    if (!available) parent.appendChild(h("p", "note", "Kahoot-like hosting requires the Windows, macOS or Linux app with Play Online and Advanced Mode on."));
+  }
+
+  function drawAdvancedTab(parent, online, quiz) {
+    var probabilities = h("div");
+    if (online) drawLayout(parent, quizCapacity >= 2 && PGQuiz.enabled(), quiz);
+    if (quiz) {
+      var setup = h("div", "quiz-settings");
+      parent.appendChild(setup);
+      PGQuizSetup.draw(setup, quizSettings, quizCapacity, function (value, redraw) {
+        quizSettings = value;
+        probabilities.hidden = !value.tiers;
+        saveQuiz();
+        if (redraw) drawSetup();
+      });
+      probabilities.hidden = !quizSettings.tiers;
+    }
+    parent.appendChild(probabilities);
+    parent = probabilities;
+    var adv = PGAdvanced.get(), ids = quiz ? PGAdvanced.LEVEL_IDS : PGAdvanced.ALL_IDS;
+    var weights = quiz ? quizSettings.rules.weights : adv.weights, inputs = {}, maxCells = {}, names = {};
     PGAdvanced.LEVEL_IDS.forEach(function (id) { names[id] = PGAdvanced.LEVEL_NAMES[id]; });
     PGAdvanced.POWER_IDS.forEach(function (id) { names[id] = PGAdvanced.POWER_NAMES[id]; });
-    advDraft = {}; ids.forEach(function (id) { advDraft[id] = cents(adv.weights[id]); });
+    advDraft = {}; ids.forEach(function (id) { advDraft[id] = cents(weights[id]); });
 
     /* Probabilities */
     parent.appendChild(h("h3", "", "Probabilities"));
-    parent.appendChild(h("p", "note", "Choose how often each level and each power-up comes up when the wheel stops. Every box is a percentage with up to two decimals, and together they must add up to exactly 100%. The numbers below tell you how much is left to give out. Extreme mode still flips the eight level chances (what you give Very Easy goes to Impossible, and so on); the power-ups stay as you set them."));
+    parent.appendChild(h("p", "note", quiz
+      ? "Set the odds for the eight difficulty tiers. Use up to two decimals per tier and a total of 100%. Extreme mode reverses the tier odds."
+      : "Choose how often each level and each power-up comes up when the wheel stops. Every box is a percentage with up to two decimals, and together they must add up to exactly 100%. The numbers below tell you how much is left to give out. Extreme mode still flips the eight level chances (what you give Very Easy goes to Impossible, and so on); the power-ups stay as you set them."));
     var remain = h("p", "advremain"); remain.setAttribute("role", "status"); remain.setAttribute("aria-live", "polite");
     parent.appendChild(remain);
     var wrap = h("div", "tablewrap"), table = h("table", "advtable"), head = h("tr");
-    ["Level or power-up", "Chance (%)", "Most it can have"].forEach(function (x) { head.appendChild(h("th", "", x)); });
+    [quiz ? "Difficulty tier" : "Level or power-up", "Chance (%)", "Most it can have"].forEach(function (x) { head.appendChild(h("th", "", x)); });
     table.appendChild(h("thead")).appendChild(head);
     var body = h("tbody");
     function refresh() {
@@ -366,7 +417,10 @@
         var v = parseFloat(inp.value);
         advDraft[id] = isFinite(v) ? Math.max(0, Math.min(10000, cents(v))) : 0;
         refresh();
-        if (draftTotal() === 10000) PGAdvanced.set({ weights: toWeights() });
+        if (draftTotal() === 10000) {
+          if (quiz) { quizSettings.rules.weights = toWeights(); saveQuiz(); }
+          else PGAdvanced.set({ weights: toWeights() });
+        }
       };
       inp.onchange = function () { inp.value = pct(advDraft[id]); };
       var cell = h("td"); cell.appendChild(inp);
@@ -377,12 +431,15 @@
     refresh();
     var reset = h("button", "small", "Back to the standard odds"); reset.type = "button";
     reset.onclick = function () {
-      PGAdvanced.resetWeights();
-      var w = PGAdvanced.get().weights;
+      var w;
+      if (quiz) { w = PGQuiz.tierWeights(); quizSettings.rules.weights = w; saveQuiz(); }
+      else { PGAdvanced.resetWeights(); w = PGAdvanced.get().weights; }
       ids.forEach(function (id) { advDraft[id] = cents(w[id]); inputs[id].value = pct(advDraft[id]); });
       refresh();
     };
     parent.appendChild(h("div", "row")).appendChild(reset);
+
+    if (quiz) return;
 
     /* The "?" slice */
     parent.appendChild(h("h3", "", "Surprise slice"));
@@ -594,7 +651,11 @@
     box.appendChild(tabs);
     if (oTab === "join") return drawJoin(box);
     // host
-    if (!app) { box.appendChild(h("p", "note", "Hosting needs the PlayGloss app for Windows, macOS, Linux or Android. In the browser you can join a game that someone else hosts.")); return; }
+    if (!app) {
+      box.appendChild(h("p", "note", "Hosting needs the PlayGloss app for Windows, macOS, Linux or Android. In the browser you can join a game that someone else hosts."));
+      drawLayout(box, false, false, true);
+      return;
+    }
     if (!onlineEnabled()) {
       var p = h("p", "note", "Play Online is off. Turn it on in "), a = h("a", "", "Settings");
       a.href = "settings.html"; p.appendChild(a); p.appendChild(document.createTextNode(" to host a game on your own network."));
@@ -608,7 +669,7 @@
       b.onclick = function () { cfg.mode = m[0]; drawSetup(); save(); };
       sides.appendChild(b);
     });
-    box.appendChild(sides);
+    if (!quizOn()) box.appendChild(sides);
     box.appendChild(customSwitch());
     if (cfg.customOn) drawCustom(box, true); // the Custom setup has its own Modes, Time, Colors and Teams
     else {
@@ -618,12 +679,30 @@
     }
     var hostBtn = h("button", "spin", "Host a game"); hostBtn.type = "button";
     hostBtn.onclick = function () {
+      if (quizOn()) return launchQuiz();
       var problem = advProblem();
       if (problem) return notice(problem);
       if (cfg.customOn && !PGAdvanced.get().dontShowExportPrompt) showExportPrompt(startHosting); else startHosting();
     };
     box.appendChild(h("div", "row")).appendChild(hostBtn);
-    box.appendChild(h("p", "note", "Players on the same Wi-Fi join with your link or QR code. You approve every guest. Nothing goes over the internet."));
+    box.appendChild(h("p", "note", quizOn() ? "Spectate and control the game while guests play on their devices. Share the invite link or QR code over the same network."
+      : "Players on the same Wi-Fi join with your link or QR code. You approve every guest. Nothing goes over the internet."));
+  }
+
+  function launchQuiz() {
+    if (stopping || host) return notice("Close the current room before hosting again.");
+    if (!quizSettings.tiers && !quizSettings.questions.length) {
+      return notice("Add at least one question under Advanced → Difficulty Tiers before hosting.");
+    }
+    if (quizSettings.tiers && advDraft && draftTotal() !== 10000) {
+      return notice("The probabilities in the Advanced tab must add up to 100%.");
+    }
+    try {
+      PGQuiz.save(quizSettings);
+      sessionStorage.setItem(PGQuiz.LAUNCH, "1");
+      save();
+      location.href = "quiz-host.html";
+    } catch (err) { notice("Allow session storage to start a Kahoot-like game."); }
   }
 
   // "Modes" in the Host a game tab: Default or Extreme, and the Infinite switch. Guests are told the choice in the lobby.
@@ -1431,6 +1510,24 @@
   /* ---------- init ---------- */
   build();
   var skipped = restore();
-  if (g) { $("setup").hidden = true; $("game").hidden = false; if (skipped) say("Your turn was skipped because you left the page."); render(); }
+  var returnFromQuiz = new URLSearchParams(location.search).get("setup") === "quiz";
+  if (returnFromQuiz) {
+    online = true; oTab = "host"; cfg.customOn = true; customTab = "advanced";
+    showSetup();
+  } else if (g) { $("setup").hidden = true; $("game").hidden = false; if (skipped) say("Your turn was skipped because you left the page."); render(); }
   else showSetup();
+  PGQuiz.deviceCapacity().then(function (value) {
+    if (!value) return;
+    quizCapacity = value;
+    quizSettings = PGQuiz.load(value);
+    if (!quizSettings.rules) quizSettings.rules = { extreme: false, time: "normal", levelColors: {}, weights: PGQuiz.tierWeights() };
+    if (returnFromQuiz) quizSelected = true;
+    var option = $("setup").querySelector('[aria-label="Layout"] button:last-child');
+    if (returnFromQuiz) drawSetup();
+    else if (option && PGQuiz.enabled()) {
+      option.disabled = false;
+      var note = option.parentNode.nextElementSibling;
+      if (note && note.classList.contains("note")) note.remove();
+    }
+  });
 })();

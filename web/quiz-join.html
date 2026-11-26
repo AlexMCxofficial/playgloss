@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Join quiz - PlayGloss</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+<main class="page quiz-page quiz-guest">
+<header class="quiz-header">
+  <div>
+    <p class="quiz-meta">PlayGloss</p>
+    <h1 id="quiz-title">Join the game</h1>
+  </div>
+  <span id="quiz-score" class="quiz-score" hidden></span>
+</header>
+<p id="quiz-status" class="note" role="status"></p>
+<form class="quiz-panel" id="quiz-join-form" hidden>
+  <label class="quiz-field"><span>Player name</span><input id="quiz-name" type="text" maxlength="16" autocomplete="nickname" required></label>
+  <button class="spin" type="submit" id="quiz-join">Join game</button>
+</form>
+<div id="quiz-body"></div>
+</main>
+<script src="js/vendor/nacl-fast.min.js"></script>
+<script src="js/core/filter.js"></script>
+<script src="js/online/proto.js"></script>
+<script src="js/online/link.js"></script>
+<script src="js/online/transport.js"></script>
+<script src="js/online/quiz.js"></script>
+<script src="js/online/quiz-view.js"></script>
+<script src="js/online/quiz-join.js"></script>
+</body>
+</html>

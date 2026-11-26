@@ -68,6 +68,14 @@ In 1 vs 1 and 2 vs 2 a random draw from 0 to 9 decides who goes first, and the p
 
 The full rules, the exact odds and install steps for every platform are in [`web/docs.html`](web/docs.html).
 
+### Kahoot-like hosting
+
+Use the Windows, macOS or Linux app with **Advanced Mode** and **Play Online** enabled. On the Play page, open **Online → Host a game → Custom rules → Advanced → Layout**, choose **Kahoot-like**, then host. Share the LAN invite link or QR code with at least two players. Guests can join on Android or in a browser. The desktop host controls the room and spectates.
+
+- With difficulty tiers on, one wheel spin sets each round's tier. Players get different questions at that tier. Set the number of rounds in Difficulty Tiers.
+- Turn tiers off to write or import an ordered set of up to 1,000 questions with per-question points, multipliers and answer formats. Multiple choice, tick box and matching pairs are supported.
+- Customize admission, the RAM-based room size, previews, timed scoring, the top-five leaderboard, streaks and the final podium. The room limit is an estimate capped at 128 players. Export/Import saves the spectator settings, wheel settings and custom questions together.
+
 ## Known limits
 
 - The offensive-name check is basic. It works offline, in English only, and it cannot catch everything.

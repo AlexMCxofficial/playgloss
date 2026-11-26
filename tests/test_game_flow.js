@@ -106,7 +106,7 @@ function sandbox(htmlFile, extra) {
   let seed = 7;
   H.ctx.__rnd = () => { if (H.ctx.__rq && H.ctx.__rq.length) return H.ctx.__rq.shift(); seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
   vm.runInContext("Math.random = __rnd;", H.ctx);
-  H.load(["js/view.js", "js/overlays.js", "js/online/proto.js", "js/online/session.js", "js/online/host.js", "js/online/link.js", "js/ui.js"]);
+  H.load(["js/view.js", "js/overlays.js", "js/online/proto.js", "js/online/session.js", "js/online/host.js", "js/online/link.js", "js/online/quiz.js", "js/ui.js"]);
   const hp = H.page, $h = (id) => hp.byId[id];
   const pick = (id) => { H.ctx.Wheel.pick = () => H.ctx.Wheel.slices.find((s) => s.id === id); };
   let G, gp; const $g = (id) => gp.byId[id];

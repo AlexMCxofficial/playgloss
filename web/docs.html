@@ -245,7 +245,7 @@
 <ul>
 <li>Hosting needs the PlayGloss app for Windows, macOS, Linux or Android, so the switch stays off in the browser.</li>
 <li>Joining does not need this switch: use Online, then Join a game, on the Play page.</li>
-<li>Turning it on does not open anything by itself. A game can only be joined after you choose Online, then Host a game. You approve every person who asks to join, and it closes when you stop hosting or leave the page.</li>
+<li>Turning it on does not open anything by itself. A game can only be joined after you choose Online, then Host a game. Guest approval is required by default, and the room closes when you stop hosting or leave the page.</li>
 <li>Only use it on a network you trust, such as your home Wi-Fi, and not on public Wi-Fi. Windows and macOS may ask you to allow network access the first time you host.</li>
 </ul>
 </section>
@@ -263,13 +263,26 @@
 <p>The server stops when you press Stop, leave the page, close the app or the game ends.</p>
 </section>
 
+<section data-doc="online-play/spectator" data-group="Online Play" data-title="Kahoot-like Hosting">
+<h2>Kahoot-like Hosting</h2>
+<p>On Windows, macOS or Linux, turn on <strong>Advanced Mode</strong> and <strong>Play Online</strong> in Settings. Open <strong>Play → Online → Host a game</strong>, turn on <strong>Custom rules</strong>, then select <strong>Advanced → Layout → Kahoot-like</strong>. Traditional is the default. Website and Android players can join from the invite link or QR code.</p>
+<p>The host approves or removes players in the waiting lobby. With Approve Guests off, anyone on the same network with the invite link can join while a place is available. Start with at least two connected players. Everyone answers on their own devices.</p>
+<ul>
+<li>With <strong>Difficulty Tiers</strong> on, spin once per question. Each player gets a different question at the same tier, with the same points and time limit. Use the player selector to view individual questions on the host screen.</li>
+<li>With <strong>Difficulty Tiers</strong> off, add 1–1,000 custom questions in the order you want to ask them. Set the answer format, 1–1,000 points and an optional 2× or 3× multiplier for each. Each question has 20 seconds. Use the separate question-set import and export in this tab to reuse a list.</li>
+<li>Choose multiple choice, tick box with one or more correct answers, or matching pairs. Preview Question gives players 5–20 seconds to read the prompt before choices appear. Timed Scores awards 50–100% of the available points for a correct answer, based on response time.</li>
+<li>See the answer distribution after each round. If enabled, Show leaderboard displays the top five with rank changes and optional streaks. A streak starts after three correct answers in a row. At the end, Show podium displays up to three finishers.</li>
+</ul>
+<p>Use Export/Import in the spectator settings to move the full setup, including the question list and wheel settings. Close room returns you to setup and ends the connection for everyone.</p>
+</section>
+
 <section data-doc="online-play/join" data-group="Online Play" data-title="How to Join">
 <h2>How to Join</h2>
 <p>Joining works in the app and on the website, on the same network as the host, and needs no switch.</p>
 <ol>
 <li>On the Play page choose <strong>Online</strong>, then <strong>Join a game</strong>.</li>
 <li>Paste the link, or scan the host&apos;s QR code. You can also scan it with any camera app, or open the link in any browser.</li>
-<li>Wait for the host to approve you.</li>
+<li>If the host requires approval, wait for them to let you in.</li>
 </ol>
 <p>PlayGloss only connects to a private network address (such as 192.168.x.x or 10.x.x.x). A link to anything else is refused. The in-app QR scanner needs a system or browser with a built-in QR reader, for example Chrome on Android.</p>
 </section>

@@ -17,13 +17,16 @@ var Link = (function () {
 
   // Returns { host, key, url } for a good link, or null. The "http://" at the start may be left out.
   function parse(text) {
-    var m = /^(?:http:\/\/)?([0-9.]+:[0-9]+)\/join\.html#([A-Za-z0-9_-]{43})$/i.exec(String(text || "").trim());
+    var m = /^(?:http:\/\/)?([0-9.]+:[0-9]+)\/(join\.html|quiz-join\.html)#([A-Za-z0-9_-]{43})$/i.exec(String(text || "").trim());
     if (!m || !hostOk(m[1])) return null;
-    return { host: m[1], key: m[2], url: "http://" + m[1] + "/join.html#" + m[2] };
+    var page = m[2].toLowerCase();
+    var link = { host: m[1], key: m[3], url: "http://" + m[1] + "/" + page + "#" + m[3] };
+    if (page === "quiz-join.html") link.page = page;
+    return link;
   }
 
   // The same game, joined from inside the app (the app talks to the host for you).
-  function appUrl(l) { return "join.html?h=" + encodeURIComponent(l.host) + "#" + l.key; }
+  function appUrl(l) { return (l.page === "quiz-join.html" ? l.page : "join.html") + "?h=" + encodeURIComponent(l.host) + "#" + l.key; }
 
   return { hostOk: hostOk, parse: parse, appUrl: appUrl };
 })();

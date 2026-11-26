@@ -68,6 +68,7 @@ var PGTransfer = (function () {
 
   // o: { title, note, accept, onText(text) -> { ok, error?, message? } }. The box stays open until the text is accepted.
   function importFile(o) {
+    var limit = o.maxText || MAX_TEXT, sizeLabel = (limit / (1024 * 1024)) + " MB";
     var m = modal(o.title, "Cancel"), area = h("textarea", "xfer-text"), pick = h("input"), go = h("button", "spin", "Import");
     pick.type = "file"; pick.accept = o.accept || ".json,.txt,.csv,application/json,text/plain,text/csv"; pick.setAttribute("aria-label", "Choose a file");
     area.rows = 6; area.spellcheck = false; area.placeholder = "...or paste the text here"; area.setAttribute("aria-label", "Pasted text");
@@ -77,16 +78,16 @@ var PGTransfer = (function () {
     pick.onchange = function () {
       var f = pick.files && pick.files[0];
       if (!f) return;
-      if (f.size > MAX_TEXT) { m.msg.textContent = "That file is too big (the limit is 2 MB)."; pick.value = ""; return; }
+      if (f.size > limit) { m.msg.textContent = "That file is too big (the limit is " + sizeLabel + ")."; pick.value = ""; return; }
       var r = new FileReader();
       r.onerror = function () { m.msg.textContent = "The file could not be read."; };
-      r.onload = function () { area.value = String(r.result).slice(0, MAX_TEXT); m.msg.textContent = "File loaded. Press Import."; };
+      r.onload = function () { area.value = String(r.result).slice(0, limit); m.msg.textContent = "File loaded. Press Import."; };
       r.readAsText(f);
     };
     go.onclick = function () {
       var text = area.value;
       if (!text.trim()) { m.msg.textContent = "Choose a file or paste the text first."; return; }
-      if (text.length > MAX_TEXT) { m.msg.textContent = "That text is too big (the limit is 2 MB)."; return; }
+      if (text.length > limit) { m.msg.textContent = "That text is too big (the limit is " + sizeLabel + ")."; return; }
       var res = o.onText(text) || {};
       if (res.ok) { m.dlg.close(); if (o.onDone) o.onDone(res); } else m.msg.textContent = "Import failed: " + (res.error || "unknown problem") + " Nothing was changed.";
     };

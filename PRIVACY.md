@@ -6,7 +6,7 @@ PlayGloss collects nothing.
 - No accounts. The game makes no network requests while you play.
 - The only things stored are your settings, kept on your own device (in your browser's local storage) and never sent anywhere: dark/light choice, color scheme and custom color, the Default/Extreme mode, the Infinite switch, the look to go back to when you leave Extreme mode, the Play Online switch, your font and text size, your background (the scheme's own, a solid color, or a picture you chose, shrunk and kept as text in your browser storage, with its fit and blur), and the Advanced Mode settings (the switch, the odds you set, the "?" switch, the questions you wrote and whether to ask about exporting before a Custom game). A picture, a configuration file or a word list you choose is read only on your device and is never uploaded.
 - If you install the website as a web app, your browser also keeps a copy of the game's own files so it works offline. Nothing about you is stored in it.
-- Scores, power-ups and answers exist only while the page is open. Nothing about a game is saved or sent.
+- Offline scores, power-ups and answers exist only while the page is open. Online games exchange the game state with the players on your network.
 - The Custom setup (hearts, target score, time to answer, wheel colors and team names) is kept only in the browser tab's temporary session storage, like names and colors, and is erased when you close the tab or app. When you host a Custom game, these rules are sent to the guests on your own network, together with the game itself.
 - The optional Wi-Fi name, username and password in the lobby's Login page helper only exist on the host's screen while the lobby is open. They are not saved, not sent to guests and not part of any link or QR code.
 - When a host chooses the Extreme color for guests, the guest's page shows that look for the length of the game. It is never saved on the guest's device.
@@ -26,8 +26,9 @@ The Play page has an **Online** option to host or join a game. Hosting never run
 - Game messages are encrypted with the secret in the link. The host's server and the join client only pass them along and never read them.
 - The secret part of the join link (after the `#`) never leaves your browser. It travels only by the link or QR code you share yourself.
 - Guest names are checked with the same name filter on every device. Offensive names are refused.
-- You approve every guest who asks to join, and you can kick anyone at any time.
-- After a game, "New game" returns to the lobby with the same guests still connected.
+- Traditional room hosts approve every guest who asks to join and can remove guests at any time.
+- After a Traditional game, "New game" returns to the lobby with the same guests still connected.
+- In a Kahoot-like room, guest approval defaults to on, and the host can switch it off. The link contains a random room key in its fragment. The join handshake sets up an encrypted channel per guest. A temporary rejoin token stays in that guest's session storage and travels only inside that channel. The host's setup and custom question set remain in session storage, or in an export file if the host saves one. Players receive their own question for each round, the lobby names, and the results the host chooses to show. The room remains open through the final results until the host closes it.
 - Your IP address and any data on your local network are never sent to PlayGloss, to GitHub, or anywhere else.
 
 Where you get the game from may keep its own standard server logs (for example your IP address) or collect its own data. That is outside the game's code:

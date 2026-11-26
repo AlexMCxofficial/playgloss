@@ -10,7 +10,7 @@ var lan = read("src-tauri/src/lan.rs"), block = /const ASSETS: \[&str; (\d+)\] =
 var served = block[2].match(/"[^"]+"/g).map(function (s) { return s.slice(1, -1); });
 assert.strictEqual(served.length, Number(block[1]), "ASSETS length must match its declared size");
 
-var join = read("web/join.html"), needs = [];
+var join = read("web/join.html") + read("web/quiz-join.html"), needs = ["/quiz-join.html"];
 join.replace(/<script src="([^"]+)"/g, function (m, p) { needs.push("/" + p); });
 join.replace(/<link rel="stylesheet" href="([^"]+)"/g, function (m, p) { needs.push("/" + p); });
 needs.push("/img/heart.png"); // View.hearts draws it on the guest's screen in Infinite mode

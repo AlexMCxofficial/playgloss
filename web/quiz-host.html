@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Host quiz - PlayGloss</title>
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+<script src="js/app.js"></script>
+</head>
+<body>
+<main class="page quiz-page">
+<header class="quiz-header">
+  <div>
+    <p class="quiz-meta">PlayGloss · Spectator host</p>
+    <h1 id="quiz-title">Kahoot-like game</h1>
+  </div>
+  <a class="small" id="quiz-back" href="play.html?setup=quiz">Back to setup</a>
+</header>
+<p id="quiz-status" class="note" role="status">Starting the room…</p>
+<div id="quiz-body"></div>
+<dialog id="quiz-confirm">
+  <form method="dialog">
+    <p id="quiz-confirm-text"></p>
+    <div class="row">
+      <button type="submit" class="small" value="cancel" autofocus>Cancel</button>
+      <button type="submit" class="spin" value="yes" id="quiz-confirm-go">Confirm</button>
+    </div>
+  </form>
+</dialog>
+</main>
+<script src="js/vendor/nacl-fast.min.js"></script>
+<script src="js/core/filter.js"></script>
+<script src="js/core/wheel.js"></script>
+<script src="js/core/game.js"></script>
+<script src="js/words.js"></script>
+<script src="js/advanced.js"></script>
+<script src="js/online/proto.js"></script>
+<script src="js/online/quiz.js"></script>
+<script src="js/online/quiz-room.js"></script>
+<script src="js/online/quiz-view.js"></script>
+<script src="js/online/quiz-host.js"></script>
+</body>
+</html>
