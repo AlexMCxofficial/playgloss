@@ -101,6 +101,9 @@ jobs:
             npx tauri android init --ci
           fi
 
+      - name: Install PlayGloss launcher icons
+        run: cp -R src-tauri/icons/android/. src-tauri/gen/android/app/src/main/res/
+
       # The QR scanner in Online > Join a game needs the camera. The camera is only used after the player presses
       # "Scan QR code", and it is optional (devices without a camera can still install the app).
       - name: Allow the camera for QR scanning
