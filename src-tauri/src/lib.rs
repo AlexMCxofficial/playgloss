@@ -3,6 +3,7 @@
 // server for online play on the same network. See lan.rs.
 mod guest;
 mod lan;
+mod quiz;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -11,6 +12,8 @@ pub fn run() {
         .manage(lan::Hub::default())
         .invoke_handler(tauri::generate_handler![
             lan::lan_start,
+            lan::lan_start_quiz,
+            quiz::quiz_capacity,
             lan::lan_stop,
             lan::lan_send,
             lan::lan_close,

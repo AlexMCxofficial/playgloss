@@ -39,8 +39,13 @@ const MAX_IP_HITS: usize = 150; // requests from one device per 10 seconds
 const POLL_SECS: u64 = 20; // how long a "wait for messages" request is held
 
 // The only files a guest may download. They come from the app's own embedded web folder.
-const ASSETS: [&str; 20] = [
+const ASSETS: [&str; 25] = [
     "/join.html",
+    "/quiz-join.html",
+    "/js/online/quiz.js",
+    "/js/online/quiz-join.js",
+    "/js/online/quiz-view.js",
+    "/js/online/transport.js",
     "/css/style.css",
     "/js/theme.js",
     "/js/pwa.js",
@@ -81,6 +86,7 @@ struct Shared {
     port: u16,
     running: AtomicBool,
     conns: AtomicUsize,
+    quiz_players: usize,
     per_ip: Mutex<HashMap<IpAddr, usize>>,
     ip_hits: Mutex<HashMap<IpAddr, VecDeque<Instant>>>,
     peers: Mutex<HashMap<String, Peer>>,
@@ -103,6 +109,19 @@ struct Req {
 
 #[tauri::command]
 pub fn lan_start(app: AppHandle, hub: State<'_, Hub>) -> Result<String, String> {
+    start(app, &hub, 0)
+}
+
+#[tauri::command]
+pub fn lan_start_quiz(app: AppHandle, hub: State<'_, Hub>, max_players: usize) -> Result<String, String> {
+    let limit = crate::quiz::quiz_capacity();
+    if !(2..=limit).contains(&max_players) {
+        return Err("Spectator hosting needs a desktop app and a supported room size.".to_string());
+    }
+    start(app, &hub, max_players)
+}
+
+fn start(app: AppHandle, hub: &Hub, quiz_players: usize) -> Result<String, String> {
     let mut cur = hub.cur.lock().map_err(|_| "busy".to_string())?;
     // Only this app's window controls the server, so a server that is still here is left over (the page was
     // reloaded, or stopping did not reach us). Turn it off and start a fresh one with a new port.
@@ -121,6 +140,7 @@ pub fn lan_start(app: AppHandle, hub: State<'_, Hub>) -> Result<String, String> 
         port,
         running: AtomicBool::new(true),
         conns: AtomicUsize::new(0),
+        quiz_players,
         per_ip: Mutex::new(HashMap::new()),
         ip_hits: Mutex::new(HashMap::new()),
         peers: Mutex::new(HashMap::new()),
@@ -174,7 +194,9 @@ pub fn lan_close(hub: State<'_, Hub>, id: String) {
     }
     if let Some(sh) = current(&hub) {
         if let Ok(mut peers) = sh.peers.lock() {
-            if let Some(p) = peers.get_mut(&id) {
+            if sh.quiz_players > 0 {
+                peers.remove(&id);
+            } else if let Some(p) = peers.get_mut(&id) {
                 p.blocked = true;
                 p.out.clear();
             }
@@ -243,6 +265,8 @@ fn allowed_peer(ip: &IpAddr) -> bool {
 /* ---------- the server ---------- */
 
 fn accept_loop(listener: TcpListener, sh: Arc<Shared>, app: AppHandle) {
+    let max_conn = if sh.quiz_players > 0 { sh.quiz_players * 2 + MAX_CONN } else { MAX_CONN };
+    let max_per_ip = if sh.quiz_players > 0 { sh.quiz_players + MAX_PER_IP } else { MAX_PER_IP };
     while sh.running.load(Ordering::SeqCst) {
         match listener.accept() {
             Ok((mut stream, addr)) => {
@@ -250,14 +274,14 @@ fn accept_loop(listener: TcpListener, sh: Arc<Shared>, app: AppHandle) {
                 if !allowed_peer(&ip) {
                     continue; // dropping the stream closes it
                 }
-                if sh.conns.load(Ordering::SeqCst) >= MAX_CONN {
+                if sh.conns.load(Ordering::SeqCst) >= max_conn {
                     reply(&mut stream, 503, "text/plain", b"", &[]);
                     continue;
                 }
                 let too_many = match sh.per_ip.lock() {
                     Ok(mut m) => {
                         let c = m.entry(ip).or_insert(0);
-                        if *c >= MAX_PER_IP {
+                        if *c >= max_per_ip {
                             true
                         } else {
                             *c += 1;
@@ -273,19 +297,27 @@ fn accept_loop(listener: TcpListener, sh: Arc<Shared>, app: AppHandle) {
                 sh.conns.fetch_add(1, Ordering::SeqCst);
                 let sh2 = Arc::clone(&sh);
                 let app2 = app.clone();
-                thread::spawn(move || {
+                let worker = thread::Builder::new().spawn(move || {
                     handle(stream, ip, &sh2, &app2);
-                    sh2.conns.fetch_sub(1, Ordering::SeqCst);
-                    if let Ok(mut m) = sh2.per_ip.lock() {
-                        if let Some(c) = m.get_mut(&ip) {
-                            if *c > 0 {
-                                *c -= 1;
-                            }
-                        }
-                    }
+                    release_connection(&sh2, ip);
                 });
+                if worker.is_err() {
+                    release_connection(&sh, ip);
+                }
             }
             Err(_) => thread::sleep(Duration::from_millis(40)), // nothing waiting (or a hiccup)
+        }
+    }
+}
+
+fn release_connection(sh: &Shared, ip: IpAddr) {
+    sh.conns.fetch_sub(1, Ordering::SeqCst);
+    if let Ok(mut m) = sh.per_ip.lock() {
+        if let Some(c) = m.get_mut(&ip) {
+            *c -= 1;
+            if *c == 0 {
+                m.remove(&ip);
+            }
         }
     }
 }
@@ -329,8 +361,13 @@ fn handle(mut s: TcpStream, ip: IpAddr, sh: &Arc<Shared>, app: &AppHandle) {
         }
     }
 
+    let ip_limit = if sh.quiz_players > 0 { MAX_IP_HITS + sh.quiz_players * 20 } else { MAX_IP_HITS };
     let ok = match sh.ip_hits.lock() {
-        Ok(mut m) => hit(m.entry(ip).or_insert_with(VecDeque::new), MAX_IP_HITS, Duration::from_secs(10)),
+        Ok(mut m) => {
+            let window = Duration::from_secs(10);
+            m.retain(|_, q| q.back().is_some_and(|last| last.elapsed() < window));
+            hit(m.entry(ip).or_insert_with(VecDeque::new), ip_limit, window)
+        }
         Err(_) => false,
     };
     if !ok {
@@ -369,7 +406,13 @@ fn post_msg(s: &mut TcpStream, req: &Req, sh: &Arc<Shared>, app: &AppHandle) {
     }
     let code: u16 = match sh.peers.lock() {
         Ok(mut peers) => {
-            if !peers.contains_key(cid) && peers.len() >= MAX_PEERS {
+            let limit = if sh.quiz_players > 0 {
+                peers.retain(|_, p| p.last.elapsed() < Duration::from_secs(90));
+                sh.quiz_players * 2 + 16
+            } else {
+                MAX_PEERS
+            };
+            if !peers.contains_key(cid) && peers.len() >= limit {
                 503
             } else {
                 let p = peers.entry(cid.to_string()).or_insert_with(Peer::new);
@@ -419,7 +462,12 @@ fn poll(s: &mut TcpStream, req: &Req, sh: &Arc<Shared>) {
                         status = 403;
                     } else {
                         p.last = Instant::now();
-                        let items: Vec<&(u64, String)> = p.out.iter().filter(|it| it.0 > after).collect();
+                        // Limit each batch to the native guest client's 64 KiB response cap.
+                        let mut bytes = 64;
+                        let items: Vec<_> = p.out.iter().filter(|it| it.0 > after).take_while(|it| {
+                            bytes += it.1.len() + 3;
+                            bytes <= 64 * 1024
+                        }).collect();
                         if let Some(lastit) = items.last() {
                             let list: Vec<String> = items.iter().map(|it| format!("\"{}\"", it.1)).collect();
                             body = format!("{{\"n\":{},\"m\":[{}]}}", lastit.0, list.join(","));
