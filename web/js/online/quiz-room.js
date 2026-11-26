@@ -257,7 +257,7 @@ var QuizRoom = (function () {
     if (now >= this.deadline) return this.reveal();
     var q = this.questions.get(player.id);
     if (!PGQuiz.validAnswer(q, answer)) return;
-    var grade = PGQuiz.grade(q, answer, this.settings.timed, now - this.opened, this.duration);
+    var grade = PGQuiz.grade(q, answer, this.settings.timed, now - this.opened, this.duration, this.settings.partial);
     this.answers.set(player.id, { answer: answer, correct: grade.correct, points: grade.points });
     if (this.answers.size === this.players.size) this.reveal();
     else {
@@ -279,14 +279,24 @@ var QuizRoom = (function () {
     this.setPhase("reveal");
   };
 
+  Room.prototype.roundSummary = function () {
+    var summary = { correct: 0, partial: 0, incorrect: 0, unanswered: 0 };
+    var me = this;
+    this.players.forEach(function (player) {
+      var answer = me.answers.get(player.id);
+      summary[!answer ? "unanswered" : answer.correct ? "correct" : answer.points > 0 ? "partial" : "incorrect"]++;
+    });
+    return summary;
+  };
+
   Room.prototype.distribution = function (id) {
     var me = this, q = this.questions.get(id), counts = q.options.map(function () { return 0; });
     var matches = q.format === "pairs" ? q.left.map(function () { return counts.slice(); }) : null;
-    var summary = { correct: 0, incorrect: 0, unanswered: 0 };
+    var summary = { correct: 0, partial: 0, incorrect: 0, unanswered: 0 };
     var assigned = 0;
     this.questions.forEach(function (other, playerId) {
       var a = me.answers.get(playerId);
-      summary[!a ? "unanswered" : a.correct ? "correct" : "incorrect"]++;
+      summary[!a ? "unanswered" : a.correct ? "correct" : a.points > 0 ? "partial" : "incorrect"]++;
       if (other !== q) return;
       assigned++;
       if (a) a.answer.forEach(function (i, k) {

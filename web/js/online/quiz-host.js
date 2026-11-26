@@ -5,7 +5,7 @@
   var get = function (id) { return document.getElementById(id); };
   var el = QuizView.el, button = QuizView.button, status = get("quiz-status"), body = get("quiz-body");
   var back = get("quiz-back"), confirm = get("quiz-confirm"), title = get("quiz-title");
-  var room, listener, refreshTimer, clockStop, focusedPlayer, relay, opening = false, stopping = false;
+  var room, listener, refreshTimer, clockStop, relay, opening = false, stopping = false;
   var queues = new Map(), closing = new Set(), qrModule, joinUrl;
   var wheel, wheelBox, shownSpin = 0, rotation = 0;
   var lobby, lobbyList, lobbyButton, lobbyStatus, game, gameStatus, questionTarget, actions;
@@ -136,39 +136,6 @@
     wheel.style.transform = "rotate(" + rotation + "deg)";
   }
 
-  function showQuestion() {
-    var phase = room.phase, players = Array.from(room.players.values());
-    if (!room.questions.has(focusedPlayer)) focusedPlayer = players[0].id;
-    var q = room.questions.get(focusedPlayer), result, picker;
-    if (room.settings.tiers) {
-      picker = el("select");
-      players.forEach(function (p) {
-        var option = el("option", "", p.name);
-        option.value = p.id;
-        picker.append(option);
-      });
-      picker.setAttribute("aria-label", "View a player's question");
-      picker.value = focusedPlayer;
-      picker.onchange = function () { focusedPlayer = picker.value; drawPrompt(); };
-      var label = el("label", "quiz-field");
-      label.append(el("span", "", "View question for"), picker);
-      questionTarget.append(label);
-    }
-    var content = el("div");
-    questionTarget.append(content);
-    function drawPrompt() {
-      q = room.questions.get(focusedPlayer);
-      result = null;
-      if (phase === "reveal") {
-        var a = room.answers.get(focusedPlayer);
-        result = { correct: q.correct, answer: room.settings.tiers && a ? a.answer : null };
-      }
-      content.replaceChildren(QuizView.question(PGQuiz.publicQuestion(q, phase === "preview"), result));
-      if (result) content.append(QuizView.distribution(q, room.distribution(focusedPlayer)));
-    }
-    drawPrompt();
-  }
-
   function buildGame() {
     game = el("section", "quiz-panel quiz-stage");
     gameStatus = el("p", "quiz-meta");
@@ -216,7 +183,11 @@
         gameStatus.append(time);
         clockStop = QuizView.clock(time, Math.max(0, room.deadline - Date.now()));
       }
-      showQuestion();
+      if (phase === "reveal") {
+        questionTarget.append(QuizView.roundSummary(room.roundSummary()));
+      } else {
+        questionTarget.append(el("h2", "", phase === "preview" ? "Players are previewing their questions" : "Players are answering"));
+      }
     } else if (phase === "leaderboard") {
       questionTarget.append(QuizView.leaderboard(room.leaders.rows, room.leaders.highest));
     } else if (phase === "podium") {

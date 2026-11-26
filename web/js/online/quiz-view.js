@@ -134,11 +134,18 @@ var QuizView = (function () {
     return section;
   }
 
+  function roundSummary(s) {
+    var section = el("div", "quiz-results");
+    section.append(bars("Round result", [["Correct", s.correct], ["Partial", s.partial || 0],
+      ["Incorrect", s.incorrect], ["Unanswered", s.unanswered]],
+      s.correct + (s.partial || 0) + s.incorrect + s.unanswered));
+    return section;
+  }
+
   function distribution(q, stats) {
     var block = el("div", "quiz-results");
     var s = stats.summary;
-    block.append(bars("Round result", [["Correct", s.correct], ["Incorrect", s.incorrect], ["Unanswered", s.unanswered]],
-      s.correct + s.incorrect + s.unanswered));
+    block.append(roundSummary(s));
     var answeredBy = stats.assigned + (stats.assigned === 1 ? " player" : " players");
     if (stats.matches) {
       q.left.forEach(function (label, i) {
@@ -190,6 +197,6 @@ var QuizView = (function () {
     return section;
   }
 
-  return { el: el, button: button, clock: clock, question: question, distribution: distribution,
+  return { el: el, button: button, clock: clock, question: question, distribution: distribution, roundSummary: roundSummary,
     leaderboard: leaderboard, podium: podium };
 })();

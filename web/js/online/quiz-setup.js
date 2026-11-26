@@ -265,6 +265,8 @@ var PGQuizSetup = (function () {
         body.append(field("Answer format", input));
         range(s.format === "pairs" ? "Pairs per question" : "Choices per question", "choices", 2, 4);
         if (s.format === "tick") note("Questions with three or four choices have two correct answers.");
+        toggle("Award partial points for some correct answers", "partial");
+        note("For tick boxes, incorrect selections offset correct ones. For matching pairs, each correct match earns a share. Full answers earn the full score and build streaks.");
       },
       function () { toggle("Score correct answers by response time", "timed"); note("Correct answers earn 50–100% of the available points based on how quickly they reach the host."); },
       function () {

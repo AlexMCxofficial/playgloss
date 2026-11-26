@@ -135,7 +135,7 @@
       } else {
         panel.append(QuizView.question(state.question, state.result));
         if (state.result) {
-          var message = !state.result.answer ? "No answer submitted" : state.result.ok ? "✓ Correct" : "✗ Incorrect";
+          var message = !state.result.answer ? "No answer submitted" : state.result.ok ? "✓ Correct" : state.result.points > 0 ? "◐ Partly correct" : "✗ Incorrect";
           status.textContent = message + " · +" + state.result.points + " pts";
           panel.append(QuizView.distribution(state.question, state.distribution));
         }

@@ -5,11 +5,11 @@ var PGQuiz = (function () {
   var FORMATS = { choice: "Multiple choice", tick: "Tick box", pairs: "Matching pairs" };
   var STORAGE = "playgloss-quiz-setup", LAUNCH = "playgloss-quiz-launch";
   var MAX_QUESTIONS = 1000, CUSTOM_SECONDS = 20;
-  var toggles = ["approve", "tiers", "timed", "leaderboard", "streaks", "preview", "podium"];
+  var toggles = ["approve", "tiers", "partial", "timed", "leaderboard", "streaks", "preview", "podium"];
 
   function defaults(capacity) {
     return { approve: true, maxPlayers: Math.min(24, capacity), tiers: true, rounds: 10,
-      format: "choice", choices: 4, timed: false, leaderboard: true, streaks: true,
+      format: "choice", choices: 4, partial: true, timed: false, leaderboard: true, streaks: true,
       preview: false, previewSeconds: 10, podium: true, questions: [] };
   }
 
@@ -77,6 +77,8 @@ var PGQuiz = (function () {
     if (!data || typeof data !== "object") throw new Error("The configuration is missing.");
     var result = defaults(capacity);
     toggles.forEach(function (key) {
+      // Configurations saved before partial scoring was added use its default.
+      if (key === "partial" && data[key] === undefined) return;
       if (typeof data[key] !== "boolean") throw new Error("Invalid on/off setting for " + key + ".");
       result[key] = data[key];
     });
@@ -234,12 +236,20 @@ var PGQuiz = (function () {
     });
   }
 
-  function grade(q, answer, timed, elapsed, duration) {
+  function grade(q, answer, timed, elapsed, duration, partial) {
     var correct = !!answer && answer.length === q.correct.length && q.correct.every(function (i, k) {
       return q.format === "pairs" ? answer[k] === i : answer.indexOf(i) >= 0;
     });
+    var share = correct ? 1 : 0;
+    if (!correct && partial !== false && answer && q.format === "pairs") {
+      share = q.correct.filter(function (i, k) { return answer[k] === i; }).length / q.correct.length;
+    } else if (!correct && partial !== false && answer && q.format === "tick") {
+      var hits = answer.filter(function (i) { return q.correct.indexOf(i) >= 0; }).length;
+      var mistakes = answer.length - hits;
+      share = Math.max(0, hits - mistakes) / q.correct.length;
+    }
     var used = Math.max(0, Math.min(1, elapsed / duration));
-    return { correct: correct, points: correct ? Math.round(q.points * (timed ? 1 - used / 2 : 1)) : 0 };
+    return { correct: correct, points: Math.round(q.points * share * (timed ? 1 - used / 2 : 1)) };
   }
 
   function standings(players, previous, streaks, random) {

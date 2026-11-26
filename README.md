@@ -74,7 +74,8 @@ Use the Windows, macOS or Linux app with **Advanced Mode** and **Play Online** e
 
 - With difficulty tiers on, one wheel spin sets each round's tier. Players get different questions at that tier. Set the number of rounds in Difficulty Tiers.
 - Turn tiers off to write or import an ordered set of up to 1,000 questions with per-question points, multipliers and answer formats. Multiple choice, tick box and matching pairs are supported.
-- Customize admission, the RAM-based room size, previews, timed scoring, the top-five leaderboard, streaks and the final podium. The room limit is an estimate capped at 128 players. Export/Import saves the spectator settings, wheel settings and custom questions together.
+- Customize admission, the RAM-based room size, previews, timed scoring, the top-five leaderboard, streaks and the final podium. The host sees the wheel and countdown while players answer, followed by aggregate results when the timer ends or everyone answers.
+- Partial scoring for tick boxes and matching pairs is on by default. Correct tick-box selections earn a share, with incorrect selections offsetting them. Each correct match earns a share. Turn partial scoring off in Answer Format to award points only for a fully correct answer. Only fully correct answers build streaks. The room limit is an estimate capped at 128 players. Export/Import saves the spectator settings, wheel settings and custom questions together.
 
 ## Known limits
 
