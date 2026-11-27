@@ -6,6 +6,7 @@
   var el = QuizView.el, status = $("quiz-status"), body = $("quiz-body"), title = $("quiz-title");
   var form = $("quiz-join-form"), input = $("quiz-name"), joinButton = $("quiz-join"), score = $("quiz-score");
   var hash = location.hash.slice(1), key, hello, channel, name, timeout, clockStop, lastState, token;
+  var lastPhase, lastRound;
   var host = new URLSearchParams(location.search).get("h");
 
   try { key = Proto.b64d(hash); } catch (err) {}
@@ -28,12 +29,14 @@
   }
 
   function disconnected(message) {
+    PGAudio.stop();
     clearTimeout(timeout);
     clearClock();
     transport.close();
     channel = null;
     hello = null;
     lastState = null;
+    lastPhase = lastRound = null;
     body.replaceChildren();
     status.textContent = message;
     title.textContent = "Join the game";
@@ -100,6 +103,16 @@
     score.hidden = state.phase === "lobby";
     score.textContent = state.score + " pts";
     var phase = state.phase;
+    if (phase !== lastPhase || state.round !== lastRound) {
+      if (phase === "question" && !state.submitted) PGAudio.play("question_open");
+      if (phase === "reveal" && state.result) {
+        var result = state.result;
+        PGAudio.play(result.ok ? "answer_correct" : result.points > 0 ? "round_result" : "answer_incorrect");
+      }
+      if (phase === "podium" || phase === "finished") PGAudio.play("game_end");
+      lastPhase = phase;
+      lastRound = state.round;
+    }
     if (phase === "lobby") {
       title.textContent = "Waiting lobby";
       status.textContent = "You're in as " + name + ".";

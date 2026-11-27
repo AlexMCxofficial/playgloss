@@ -20,6 +20,7 @@ var PGSplash = (function () {
     var openHome = function () { window.location.replace("index.html"); };
     if (enabled()) {
       splash.hidden = false;
+      PGAudio.startup();
       window.setTimeout(openHome, 750);
     } else openHome();
   }

@@ -132,8 +132,10 @@
     var index = room.o.levels.indexOf(room.level);
     var target = (360 - (22.5 + index * 45)) % 360;
     var turn = (target - rotation % 360 + 360) % 360;
+    var from = rotation;
     rotation += reduce ? turn : 1080 + turn;
     wheel.style.transform = "rotate(" + rotation + "deg)";
+    PGAudio.spin(from, rotation, room.o.levels.length, 2, reduce ? null : [0.12, 0.55, 0.13, 1]);
   }
 
   function buildGame() {
@@ -184,17 +186,21 @@
         clockStop = QuizView.clock(time, Math.max(0, room.deadline - Date.now()));
       }
       if (phase === "reveal") {
+        PGAudio.play("round_result");
         questionTarget.append(QuizView.roundSummary(room.roundSummary()));
       } else {
+        if (phase === "question") PGAudio.play("question_open");
         questionTarget.append(el("h2", "", phase === "preview" ? "Players are previewing their questions" : "Players are answering"));
       }
     } else if (phase === "leaderboard") {
       questionTarget.append(QuizView.leaderboard(room.leaders.rows, room.leaders.highest));
     } else if (phase === "podium") {
+      PGAudio.play("game_end");
       questionTarget.append(QuizView.podium(room.leaders.rows.slice(0, 3)));
     } else if (phase === "ready") {
       questionTarget.append(el("p", "note", "All players answer on their own devices."));
     } else if (phase === "finished") {
+      PGAudio.play("game_end");
       questionTarget.append(el("h2", "", "All questions complete"));
     }
     if (phase === "question") actions.append(button("Reveal answers", function () {
@@ -213,6 +219,7 @@
   async function stop() {
     if (stopping) return;
     stopping = true;
+    PGAudio.stop();
     clearInterval(refreshTimer);
     if (clockStop) clockStop();
     if (listener) { listener(); listener = null; }

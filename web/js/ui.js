@@ -9,6 +9,7 @@
   var cfg = defaults(), g = null, sd = null, used = Overlays.used, busy = false, rot = 0, tm = null, tab = "game", pickers = [];
   var quizSelected = false, quizCapacity = 0, quizSettings = null;
   var customTab = "general", wheelKey = null; // customTab: the open tab of the Custom setup. wheelKey: which colors the wheel is drawn with
+  var gameWasOver = false;
 
   // Online play state
   var online = false, oTab = "join", stopScan = null; // the fourth option, "Online": which view is open
@@ -132,6 +133,8 @@
   function idle() { return !busy && !offering; }
   function later(fn, ms) { var t = setTimeout(fn, ms); timers.push(t); return t; }
   function resetFlow() {
+    PGAudio.stop();
+    gameWasOver = false;
     timers.forEach(clearTimeout); timers = [];
     S = { pu:null, q:null, egg:null, drawOffer:null }; pend = null; drawP = null; offering = false;
     ["pu", "q", "egg"].forEach(function (id) { $(id).hidden = true; });
@@ -1308,6 +1311,8 @@
     tab = shownTab;
     $("spin").disabled = !idle() || g.over || remote(g.turn);
     $("new").hidden = !(g.over || g.mode === "solo");
+    if (g.over && !gameWasOver) PGAudio.play("game_end");
+    gameWasOver = g.over;
     save();
     broadcastSnap();
   }
@@ -1321,10 +1326,12 @@
     busy = true; say(""); render();
     var res = Wheel.pick(g.extreme, g.custom && g.custom.adv), i = SL.indexOf(res), a = 360 / SL.length; // the wheel is drawn with equal slices; the odds only decide where it stops
     var want = ((-(i + .5) * a) % 360 + 360) % 360, cur = ((rot % 360) + 360) % 360;
+    var from = rot;
     rot += ((want - cur + 360) % 360) + 1800;
     var rm = matchMedia("(prefers-reduced-motion: reduce)").matches, w = $("wheel");
     w.style.transition = rm ? "transform .2s" : "transform 4s cubic-bezier(.15,.7,.1,1)";
     w.style.transform = "rotate(" + rot + "deg)";
+    PGAudio.spin(from, rot, SL.length, rm ? 0.2 : 4, rm ? null : [0.15, 0.7, 0.1, 1]);
     broadcastSnap({ spin: { n: ++spinN, index: i } });
     later(function () { landed(res); }, rm ? 250 : 4100);
   }
@@ -1333,6 +1340,7 @@
   function withTime(lv) { return Object.assign({}, lv, { time: Game.seconds(g, lv) }); }
 
   function landed(res) {
+    if (res.points === undefined) PGAudio.play("reward");
     if (sd) return sdLand(res);
     if (res.points !== undefined) return reveal(withTime(res));
     if (res.id === "egg") { say(who() + " hit the Easter egg!"); return eggFlow(false, finish); }
@@ -1375,10 +1383,12 @@
   function askQuestion(lv) {
     var seat = g.turn, p = g.players[seat], pre = Overlays.pick(lv, g.extreme, g);
     var announce = function (ok, k, pts) {
+      PGAudio.play(ok ? "answer_correct" : "answer_incorrect");
       say((k === null ? "Time is up. " : ok ? "Correct. " : "Wrong. ") + p.name + " gets " + pl(pts, "point") + "." +
         (g.inf && !ok ? " " + p.name + " loses a heart (" + p.hearts + " left)." : "")); // the heart is already taken off when this runs
     };
     say(p.name + " is answering...");
+    PGAudio.play("question_open");
     if (!remote(seat)) {
       broadcastSnap();
       return Overlays.question(g, lv, pre).then(function (r) {
@@ -1510,6 +1520,7 @@
   /* ---------- init ---------- */
   build();
   var skipped = restore();
+  gameWasOver = !!(g && g.over);
   var returnFromQuiz = new URLSearchParams(location.search).get("setup") === "quiz";
   if (returnFromQuiz) {
     online = true; oTab = "host"; cfg.customOn = true; customTab = "advanced";

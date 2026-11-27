@@ -7,6 +7,7 @@
 <link rel="icon" href="logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
+<script src="js/audio.js"></script>
 </head>
 <body>
 <main class="page quiz-page quiz-guest">
@@ -17,6 +18,10 @@
   </div>
   <span id="quiz-score" class="quiz-score" hidden></span>
 </header>
+<details class="guest-audio">
+<summary>Audio settings</summary>
+<div data-audio-controls></div>
+</details>
 <p id="quiz-status" class="note" role="status"></p>
 <form class="quiz-panel" id="quiz-join-form" hidden>
   <label class="quiz-field"><span>Player name</span><input id="quiz-name" type="text" maxlength="16" autocomplete="nickname" required></label>

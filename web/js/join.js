@@ -111,7 +111,7 @@
   });
 
   var mySeat = -1, myToken = null, myName = "", phase = "lobby", g = null, sd = false, tab = "game";
-  var busy = false, qNow = -1, qDone = false, qTimer = null, spinN = 0, rot = 0, dlgKind = null;
+  var busy = false, qNow = -1, qDone = false, qResultPlayed = false, qTimer = null, spinN = 0, rot = 0, dlgKind = null;
   var away = false, rules = Session.cleanRules(null), wheelKey = null; // rules: the mode the host chose, from the lobby message
 
   function show(id) {
@@ -167,7 +167,9 @@
       else { clearGame(); show("lobby"); }
     } else if (e.t === "snap") {
       var ng = Session.cleanSnap(e.g, Filter);
-      if (ng) { g = ng; sd = !!e.sd; show("game");
+      if (ng) {
+        if (g && !g.over && ng.over) PGAudio.play("game_end");
+        g = ng; sd = !!e.sd; show("game");
         buildWheel(g.custom.levelColors); // only redrawn when the colors are different
         renderGame(Session.cleanExtras(e)); }
     } else if (e.t === "kick") {
@@ -251,6 +253,7 @@
 
   // Leaving the game screen (the host went back to the lobby): nothing may stay open.
   function clearGame() {
+    if (g) PGAudio.stop();
     $("pu").hidden = true; $("egg").hidden = true; hideQuestion(); closeDlg(); busy = false; g = null;
   }
 
@@ -277,9 +280,11 @@
   function animateWheel(index) {
     var a = 360 / Wheel.slices.length, want = ((-(index + .5) * a) % 360 + 360) % 360, cur = ((rot % 360) + 360) % 360, w = $("wheel");
     var rm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var from = rot;
     rot += ((want - cur + 360) % 360) + 1800;
     w.style.transition = rm ? "transform .2s" : "transform 4s cubic-bezier(.15,.7,.1,1)";
     w.style.transform = "rotate(" + rot + "deg)";
+    PGAudio.spin(from, rot, Wheel.slices.length, rm ? 0.2 : 4, rm ? null : [0.15, 0.7, 0.1, 1]);
   }
 
   // One dialog (#dlg) is shared by the draw offer and the resign question. dlgKind says which one is open.
@@ -320,6 +325,8 @@
     var box = $("q-opts"), first = $("q").hidden;
     if (qNow !== q.n) {
       hideQuestion(); qNow = q.n; qDone = false;
+      qResultPlayed = false;
+      if (!q.res) PGAudio.play("question_open");
       $("q-level").textContent = q.level + ", " + pl(q.points, "point") + (q.boost ? ", " + (q.boost === "shield" ? "Shield" : q.boost.replace("x", "") + "x") + " active" : "");
       $("q-word").textContent = q.word;
       box.textContent = "";
@@ -340,6 +347,7 @@
     }
     if (q.res) {
       var r = q.res, kids = box.children;
+      if (!qResultPlayed) { qResultPlayed = true; PGAudio.play(r.ok ? "answer_correct" : "answer_incorrect"); }
       qDone = true; clearInterval(qTimer); qTimer = null;
       for (var j = 0; j < kids.length; j++) { kids[j].disabled = true; if (j === r.right) kids[j].classList.add("right"); else if (j === r.k) kids[j].classList.add("wrong"); }
       $("q-level").textContent = (r.k < 0 ? "Time is up. " : r.ok ? "Correct. " : "Wrong. ") + pl(r.pts, "point") + ".";
@@ -361,6 +369,7 @@
   // Easter egg: everybody sees it, only the player whose turn it is gets the Continue button.
   function showEgg(shared, mine) {
     var first = $("egg").hidden;
+    if (first) PGAudio.play("reward");
     try {
       var one = Math.round(Wheel.total / Wheel.slices[Wheel.slices.length - 1].weight / 50) * 50;
       $("egg-odds").textContent = one.toLocaleString("en-US");

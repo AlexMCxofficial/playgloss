@@ -385,6 +385,9 @@ input,textarea,select,button{font-family:inherit}
 .sep{margin:1.5rem 0;border:0;border-top:1px solid var(--border)}
 .slidebox{align-items:center;gap:.75rem}
 .slidebox input[type=range]{flex:1;min-width:8rem;max-width:18rem;accent-color:var(--accent)}
+.guest-audio{margin:.4rem 0 1rem}
+.guest-audio summary{width:fit-content;cursor:pointer;font-weight:700}
+[data-audio-controls] output{min-width:4ch;font-variant-numeric:tabular-nums}
 .numbox{display:inline-flex;align-items:center;gap:.35rem}
 .numbox input,.filebox input[type=file],.advin,.qform input,.xfer-text{
   min-height:44px;padding:0 .75rem;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
