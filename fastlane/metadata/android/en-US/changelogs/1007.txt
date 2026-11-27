@@ -1,0 +1,1 @@
+Added built-in sounds for the wheel, answers, round results, and app startup. In Settings → General, turn audio on or off and set the volume from 0% to 100%. Audio starts on at 50%. LAN guests can adjust their own sound on the join page.
