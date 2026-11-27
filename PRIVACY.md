@@ -35,5 +35,4 @@ The Play page has an **Online** option to host or join a game. Hosting never run
 Where you get the game from may keep its own standard server logs (for example your IP address) or collect its own data. That is outside the game's code:
 
 - GitHub: https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement
-- Our website host: see names.co.uk privacy policy
-- App stores (if you install a packaged app from one): see that store's privacy policy.
+- Our website host: GitHub, already linked above
