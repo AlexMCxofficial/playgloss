@@ -49,8 +49,16 @@ jobs:
       - name: Collect installer
         shell: bash
         run: |
+          set -euo pipefail
+          shopt -s nullglob
+          VERSION=$(node -p 'require("./package.json").version')
+          installers=(src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe)
+          if (( ${#installers[@]} != 1 )); then
+            echo "::error::Expected one 32-bit NSIS installer, found ${#installers[@]}"
+            exit 1
+          fi
           mkdir dist
-          cp src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/*.exe dist/
+          cp "${installers[0]}" "dist/PlayGloss_${VERSION}_Windows10_32bit-setup.exe"
           ls -l dist
 
       - uses: actions/upload-artifact@v4

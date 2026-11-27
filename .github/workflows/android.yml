@@ -138,7 +138,7 @@ jobs:
             echo "::error::The build made no APK"
             exit 1
           fi
-          OUT="dist/PlayGloss-${VERSION}.apk"
+          OUT="dist/PlayGloss_${VERSION}_android.apk"
           "$BT/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" sign \
             --ks "$KS" \
