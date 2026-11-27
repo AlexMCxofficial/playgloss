@@ -21,6 +21,17 @@ var sw = read("web/sw.js"), files = new Function(sw.replace(/self\.addEventListe
 files.forEach(function (f) { if (f !== "./") assert(fs.existsSync(path.join(root, "web", f)), "sw.js lists a missing file: " + f); });
 console.log("ok  every file in the offline cache exists (" + files.length + " checked)");
 
+var audio = fs.readdirSync(path.join(root, "web/audio")).filter(function (name) { return name.endsWith(".wav"); });
+assert(audio.includes("splash_screen.wav"), "the startup sound must ship with the app");
+audio.forEach(function (name) {
+  var file = "audio/" + name, wav = fs.readFileSync(path.join(root, "web", file));
+  assert.strictEqual(wav.toString("ascii", 0, 4), "RIFF", file + " must be a WAV file");
+  assert.strictEqual(wav.toString("ascii", 8, 12), "WAVE", file + " must be a WAV file");
+  assert(files.includes(file), file + " must play offline");
+  if (name !== "splash_screen.wav") assert(served.includes("/" + file), "LAN guests cannot download " + file);
+});
+console.log("ok  sound files are WAVs and are available offline and to LAN guests (" + audio.length + " checked)");
+
 var W = new Function(read("web/js/words.js") + ";return Words")();
 var ids = W.levels(), seen = {};
 assert.strictEqual(ids.length, 8, "eight levels");

@@ -89,7 +89,7 @@ function sandbox(htmlFile, extra) {
 (async function main() {
   let count = 0; const test = async (name, fn) => { await fn(); count++; console.log("ok  " + name); };
   const relay = newRelay();
-  const SHARED = ["js/vendor/nacl-fast.min.js", "js/core/wheel.js", "js/core/game.js", "js/core/filter.js"];
+  const SHARED = ["js/audio.js", "js/vendor/nacl-fast.min.js", "js/core/wheel.js", "js/core/game.js", "js/core/filter.js"];
 
   /* the host page (the app) */
   const tauri = {
