@@ -161,7 +161,7 @@ For Mac/Linux use `python3 -m venv .venv`, `source .venv/bin/activate`, and repl
 PlayGloss was built by AlexMC together with an AI assistant, Claude, made by Anthropic. I am telling you plainly so you can judge it for yourself, and so any store, distribution or project with a policy about AI-assisted code can decide what to do.
 
 - **AlexMC** decided what to build: the rules, the odds, the game modes, the look, the platforms and the stores. I also tested it on real devices, ran the builds and made the releases.
-- **Claude** wrote most of the code from those instructions: the game logic and interface, the offline web app files, the Tauri setup, the word-list script, the GitHub Actions workflows, the documentation and the store text.
+- **Claude** wrote some of the code from those instructions: the game logic and interface, the offline web app files, the Tauri setup, the word-list script, the GitHub Actions workflows.
 - **Not AI-generated:** the word meanings come from Princeton WordNet (the script only selects and arranges them), and the app icon and the Easter egg screen design were supplied by AlexMC.
 
 Everything is open source under the MIT License, so you can read all of it. If you contribute, please say so in your pull request if you used an AI tool.
