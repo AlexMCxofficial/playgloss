@@ -28,8 +28,14 @@ function makePage(html) {
   const match = (n, sel) => { const m = /^(\w+)\[data-(\w+)\]$/.exec(sel); return !!m && n.tagName === m[1] && n.dataset[m[2]] !== undefined; };
   function mk(tag) {
     const e = { tagName: tag, children: [], parent: null, attrs: {}, dataset: {}, listeners: {}, _text: "", hidden: false, disabled: false, open: false, className: "", value: "", style: { setProperty() {}, cssText: "" } };
-    e.classList = { add(c) { if (!e.className.split(" ").includes(c)) e.className = (e.className + " " + c).trim(); }, contains(c) { return e.className.split(" ").includes(c); } };
+    e.classList = {
+      add(c) { if (!e.className.split(" ").includes(c)) e.className = (e.className + " " + c).trim(); },
+      remove(c) { e.className = e.className.split(" ").filter((item) => item !== c).join(" "); },
+      contains(c) { return e.className.split(" ").includes(c); }
+    };
     e.appendChild = (c) => { c.parent = e; e.children.push(c); return c; };
+    e.append = (...children) => { children.forEach(e.appendChild); };
+    e.replaceChildren = (...children) => { e.children = []; e.append(...children); };
     e.removeChild = (c) => { e.children = e.children.filter((x) => x !== c); return c; };
     e.setAttribute = (k, v) => { e.attrs[k] = String(v); };
     e.addEventListener = (t, f) => { (e.listeners[t] = e.listeners[t] || []).push(f); };
@@ -44,11 +50,19 @@ function makePage(html) {
   const re = /<(\w+)\b([^>]*?)\bid="([^"]+)"([^>]*)>/g; let m;
   while ((m = re.exec(html))) { const e = mk(m[1]); e.hidden = /\bhidden\b/.test(m[2] + m[4]); e.disabled = /\bdisabled\b/.test(m[2] + m[4]); e.parent = mk("div"); byId[m[3]] = e; }
   ["game", "players", "board"].forEach((t) => { const b = mk("button"); b.dataset.tab = t; byId.mtabs.appendChild(b); });
-  return { byId, mk, doc: { getElementById: (id) => byId[id] || null, createElement: mk, body: mk("body"), hidden: false, addEventListener() {} } };
+  const createTextNode = (text) => { const node = mk("#text"); node.textContent = text; return node; };
+  return { byId, mk, doc: { getElementById: (id) => byId[id] || null, createElement: mk, createTextNode, body: mk("body"), hidden: false, addEventListener() {} } };
 }
 // every button below an element (or the whole page) whose text matches
 function buttons(el, out) { out = out || []; if (el.tagName === "button") out.push(el); el.children.forEach((c) => buttons(c, out)); return out; }
 const btn = (root, text) => buttons(root).find((b) => b.textContent === text);
+function find(root, predicate) {
+  if (predicate(root)) return root;
+  for (const child of root.children) {
+    const result = find(child, predicate);
+    if (result) return result;
+  }
+}
 function click(page, b) { // like a finger: disabled buttons do nothing; a button without its own handler goes to the page's delegated listener
   assert(b, "button not found");
   if (b.disabled) return false;
@@ -110,6 +124,125 @@ function sandbox(htmlFile, extra) {
   const hp = H.page, $h = (id) => hp.byId[id];
   const pick = (id) => { H.ctx.Wheel.pick = () => H.ctx.Wheel.slices.find((s) => s.id === id); };
   let G, gp; const $g = (id) => gp.byId[id];
+
+  await test("traditional hosts send the Easter egg screen only to the player who landed on it", async () => {
+    const messages = new Map();
+    const host = { session: {
+      phase: "game",
+      conns: { active: { state: "ok", seat: 1 }, opponent: { state: "ok", seat: 0 }, spectator: { state: "ok", seat: -1 } },
+      tell: (id, message) => messages.set(id, message)
+    } };
+    H.ctx.Host.prototype.broadcastSnap.call(host, { msg: "", egg: { odds: 147 } }, 1);
+    assert.strictEqual(messages.get("active").egg.odds, 147);
+    assert.strictEqual(messages.get("opponent").egg, undefined);
+    assert.strictEqual(messages.get("spectator").egg, undefined);
+  });
+
+  await test("the hidden menu and multiplier are reachable from every game setup", async () => {
+    const storage = new Map([["online", "1"], ["advanced-mode", "1"]]);
+    const D = sandbox("play.html", {
+      __TAURI__: { core: { invoke: async () => 24 } },
+      localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) }
+    });
+    D.load(SHARED.concat(["js/words.js", "js/color.js", "js/view.js", "js/overlays.js",
+      "js/advanced.js", "js/online/quiz.js", "js/online/quiz-setup.js", "js/ui.js"]));
+    const page = D.page, setup = page.byId["setup-body"];
+    page.byId.setup.querySelector = () => null;
+    setup.querySelector = () => find(setup, (node) => node.classList.contains("advanced-help"));
+    await settle();
+    const press = (text) => click(page, btn(setup, text));
+    const dialog = page.byId["hidden-rate-dialog"], cancel = page.byId["hidden-rate-cancel"];
+    const proceed = page.byId["hidden-rate-proceed"], message = page.byId["hidden-rate-message"];
+    const slider = () => find(setup, (node) => node.id === "egg-multiplier-slider");
+    assert.equal(btn(setup, "?"), undefined);
+    press("Solo"); press("Custom rules: Off"); press("Advanced"); press("?");
+    assert(dialog.open);
+    assert.match(message.textContent, /^ᓵ𝙹リ/);
+    assert.equal(cancel.textContent, "ᓵᔑリᓵᒷꖎ");
+    assert.equal(proceed.textContent, "!¡∷𝙹ᓵᒷᒷ↸");
+    click(page, cancel);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), false);
+    press("?"); click(page, proceed);
+    assert.equal(message.textContent, "Are you sure?");
+    assert.equal(cancel.textContent, "No");
+    assert.equal(proceed.textContent, "Yes");
+    click(page, cancel);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), false);
+    press("?"); click(page, proceed); click(page, proceed);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), true);
+    assert.equal(slider(), undefined);
+    press("?");
+    assert.equal(message.textContent, 'Disable "playgloss.debug.hidden.easteregg.rate"?');
+    assert.equal(cancel.textContent, "Cancel");
+    assert.equal(proceed.textContent, "Disable");
+    click(page, cancel);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), true);
+    D.ctx.PGAdvanced.setHiddenRate(true);
+    for (const mode of ["Solo", "1 vs 1", "2 vs 2"]) {
+      press(mode); press("Advanced");
+      assert.equal(slider().value, 1);
+      assert.equal(slider().min, 1);
+      assert.equal(slider().max, 1000);
+      press("?"); click(page, cancel);
+    }
+    press("Online"); press("Host a game"); press("Advanced");
+    assert(slider());
+    press("Kahoot-like");
+    assert(slider());
+    D.ctx.PGAdvanced.set({ eggMultiplier: 25 });
+    press("?"); click(page, cancel);
+    assert.equal(D.ctx.PGAdvanced.hiddenRateEnabled(), true);
+    press("?"); click(page, proceed);
+    assert.equal(dialog.open, false);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), false);
+    assert.equal(D.ctx.PGAdvanced.hiddenRateEnabled(), false);
+    assert.equal(slider(), undefined);
+    assert.equal(D.ctx.PGAdvanced.forEgg().eggMultiplier, undefined);
+    const toggle = find(setup, (node) => node.textContent === 'Enable/Disable "?"' && node.tagName === "span");
+    assert(toggle);
+    click(page, btn(toggle.parent, "Disable"));
+    assert.equal(D.ctx.PGAdvanced.forEgg().egg, false);
+    click(page, btn(toggle.parent, "Enable"));
+    assert.equal(D.ctx.PGAdvanced.forEgg().egg, undefined);
+    press("?");
+    assert.equal(proceed.textContent.startsWith("!"), true);
+    click(page, proceed); click(page, proceed);
+    assert.equal(D.ctx.PGAdvanced.hiddenUnlocked(), true);
+    assert.equal(D.ctx.PGAdvanced.hiddenRateEnabled(), false);
+    assert.equal(D.ctx.PGAdvanced.get().eggMultiplier, 25);
+    press("Custom rules: On");
+    assert.equal(slider(), undefined);
+  });
+
+  await test("a local sudden-death surprise displays the odds and keeps the same turn", async () => {
+    const D = sandbox("play.html", {});
+    D.load(SHARED.concat(["js/words.js", "js/color.js", "js/view.js", "js/overlays.js", "js/advanced.js", "js/online/quiz.js"]));
+    const g = D.ctx.Game.create({
+      mode: "1v1", customOn: true, custom: { adv: { eggMultiplier: 2 } },
+      teams: [{ name: "Red", color: "#e03131", players: ["Red"] }, { name: "Blue", color: "#2f80ed", players: ["Blue"] }]
+    });
+    g.players.forEach((p) => { p.score = 100; });
+    g.turn = g.pos = 1;
+    const key = "playgloss-session-v3", sd = { who: 1, vals: [5, null] };
+    D.ctx.sessionStorage.setItem(key, JSON.stringify({ v: 3, g, sd }));
+    D.load(["js/ui.js"]);
+    const $d = (id) => D.page.byId[id];
+    D.ctx.Wheel.pick = () => D.ctx.Wheel.slices.find((slice) => slice.id === "egg");
+    assert.equal($d("egg").hidden, true);
+    assert.equal($d("egg-odds").textContent, "");
+    click(D.page, $d("spin")); await advance(4300);
+    assert.equal($d("egg").hidden, false);
+    assert.equal($d("egg-odds").textContent, "73,376");
+    click(D.page, $d("egg-ok"));
+    assert.equal($d("egg").hidden, true);
+    assert.equal($d("egg-odds").textContent, "");
+    const saved = JSON.parse(D.ctx.sessionStorage.getItem(key));
+    assert.equal(saved.g.turn, 1);
+    assert.equal(saved.g.over, false);
+    assert.deepEqual(saved.g.players.map((p) => p.score), [100, 100]);
+    assert.deepEqual(saved.sd, sd);
+    assert.equal($d("spin").disabled, false);
+  });
 
   await test("host opens a lobby; the iPad joins, is approved and takes seat 2", async () => {
     click(hp, btn($h("setup-body"), "Online")); await settle();
@@ -240,20 +373,27 @@ function sandbox(htmlFile, extra) {
     assert(/wins/.test($h("turn").textContent) && /wins/.test($g("turn").textContent), $h("turn").textContent + " | " + $g("turn").textContent);
   });
 
-  await test("Easter egg on the guest's turn: the guest gets the Continue button, the host does not", async () => {
+  await test("a LAN guest sees the odds and keeps the same turn with the same score", async () => {
     click(hp, $h("new")); await advance(300);
     await startGame(false);
+    const state = () => JSON.parse(H.ctx.sessionStorage.getItem("playgloss-session-v3")).g;
+    const before = state();
+    assert.strictEqual($g("egg-odds").textContent, "");
     pick("egg"); click(gp, $g("spin")); await advance(4300);
     assert.strictEqual($g("egg").hidden, false, "the guest sees the egg");
     assert.strictEqual($g("egg-ok").hidden, false, "with a Continue button");
+    assert.strictEqual($g("egg-odds").textContent, "146,751");
     assert.strictEqual($h("egg").hidden, true, "the host does not");
     click(gp, $g("egg-ok")); await advance(400);
     assert.strictEqual($g("egg").hidden, true);
-    assert.strictEqual($h("spin").disabled, false, "the turn passed to the host's player");
+    assert.strictEqual($g("egg-odds").textContent, "");
+    assert.strictEqual($h("egg-odds").textContent, "");
+    assert.strictEqual($g("spin").disabled, false, "the guest can spin again");
+    assert.strictEqual(state().turn, before.turn);
+    assert.deepEqual(state().players, before.players);
   });
 
   await test("a guest who does not answer in time gets time up and the game carries on", async () => {
-    pick("very-easy"); click(hp, $h("spin")); await advance(4300); await finishQuestionOnHost(0);
     pick("easy"); click(gp, $g("spin")); await advance(4300);
     assert.strictEqual($g("q").hidden, false);
     await advance(16000);                                          // Easy: 15 seconds

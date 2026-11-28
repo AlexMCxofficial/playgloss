@@ -36,7 +36,7 @@ assert.strictEqual(Wheel.weight(slice("egg"), false, noEgg), 0);
 // the egg keeps its own chance whatever the player sets (the same share as in the standard game)
 assert(Math.abs(Wheel.percent(slice("egg"), false, std) - Wheel.percent(slice("egg"), false, null)) < 1e-6);
 assert(Wheel.slices.includes(Wheel.pick(false, std))); // the wheel can find the slice it stopped on
-console.log("ok  odds: standard, Extreme flip, 100% on one level, egg off, and the egg's own chance never changes");
+console.log("ok  odds: standard, Extreme flip, 100% on one level, and the default chance with the egg on or off");
 
 // --- what a game accepts: only exact, clean odds ---
 assert.strictEqual(JSON.stringify(Game.cleanAdv(std).weights), JSON.stringify(std.weights));
@@ -81,6 +81,52 @@ PGAdvanced.setEnabled(false);
 assert.strictEqual(PGAdvanced.forGame(), null); // Advanced Mode off: the standard game, whatever is saved
 assert.strictEqual(PGAdvanced.resetWeights().ok, true); PGAdvanced.set({ eggEnabled: true });
 console.log("ok  odds must total exactly 100%, bad ones are refused without saving, Advanced Mode off means the standard game");
+
+// --- hidden rate unlock, range, and game odds ---
+assert.strictEqual(PGAdvanced.unlockHiddenRate(), false);
+PGAdvanced.setEnabled(true);
+PGAdvanced.setHiddenRate(true);
+assert.strictEqual(PGAdvanced.hiddenRateEnabled(), false);
+assert.strictEqual(PGAdvanced.unlockHiddenRate(), true);
+assert.strictEqual(PGAdvanced.hiddenRateEnabled(), false);
+PGAdvanced.setHiddenRate(true);
+assert.strictEqual(PGAdvanced.get().eggMultiplier, 1);
+assert.strictEqual(PGAdvanced.forGame().eggMultiplier, 1);
+store["adv-egg-multiplier"] = "0";
+assert.strictEqual(PGAdvanced.get().eggMultiplier, 1);
+assert.strictEqual(PGAdvanced.set({ eggMultiplier: 0 }).ok, false);
+assert.strictEqual(PGAdvanced.set({ eggMultiplier: 1001 }).ok, false);
+assert.strictEqual(PGAdvanced.set({ eggMultiplier: 1.5 }).ok, false);
+assert.strictEqual(PGAdvanced.set({ eggMultiplier: 1000 }).ok, true);
+const boosted = PGAdvanced.forGame();
+assert.strictEqual(Game.cleanAdv(boosted).eggMultiplier, 1000);
+assert.strictEqual(Game.cleanAdv({ eggMultiplier: 1001 }), null);
+const baseChance = Wheel.percent(slice("egg"), false);
+for (const [multiplier, odds] of [[1, 146751], [2, 73376], [1000, 147]]) {
+  const rules = { eggMultiplier: multiplier };
+  assert(Math.abs(Wheel.percent(slice("egg"), false, rules) - baseChance * multiplier) < 1e-12);
+  assert(Math.abs(Wheel.percent(slice("egg"), true, { ...rules, ...std }) - baseChance * multiplier) < 1e-12);
+  assert.strictEqual(Wheel.eggOdds(rules), odds);
+}
+assert.strictEqual(Wheel.weight(slice("egg"), false, { ...boosted, egg: false }), 0);
+assert.strictEqual(Game.value(slice("egg")), 0);
+assert.strictEqual(Session.cleanExtras({ egg: { odds: 147 } }).egg.odds, 147);
+assert.strictEqual(Session.cleanExtras({ egg: { odds: "147" } }).egg.odds, undefined);
+assert.strictEqual(PGAdvanced.exportData().eggMultiplier, 1000);
+assert.strictEqual(PGAdvanced.importData({ eggMultiplier: 0 }).ok, true);
+assert.strictEqual(PGAdvanced.get().eggMultiplier, 1);
+PGAdvanced.set({ eggMultiplier: 1000 });
+PGAdvanced.setEnabled(false);
+assert.strictEqual(PGAdvanced.forGame(), null);
+PGAdvanced.setHiddenRate(false);
+assert.strictEqual(PGAdvanced.hiddenRateEnabled(), true);
+PGAdvanced.setEnabled(true);
+assert.strictEqual(PGAdvanced.forGame().eggMultiplier, 1000);
+PGAdvanced.setHiddenRate(false);
+assert.strictEqual(PGAdvanced.forGame(), null);
+assert.strictEqual(PGAdvanced.get().eggMultiplier, 1000);
+PGAdvanced.setEnabled(false);
+console.log("ok  hidden-rate gates, multiplier bounds, wheel odds and LAN result");
 
 // --- questions and the word list (CSV) ---
 const q1 = { word: "apple", meaning: "a fruit, round", wrong: ["a tool", "a car", "a lake"], choices: 4 };

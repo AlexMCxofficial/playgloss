@@ -77,10 +77,10 @@ assert.equal(ranking.highest.name, "Player 1");
 assert.equal(PGQuiz.standings(rankingPlayers, new Map(), false, () => 0).highest, null);
 console.log("ok  configuration, 1,000-question import, formats, scoring, links and 128 distinct questions per tier");
 
-function harness(settings) {
+function harness(settings, eggRules, random = () => 0.4) {
   const out = new Map(), dropped = new Set();
   let time = 1000;
-  const room = new Room({ settings, levels, words, rules: { extreme: false, weights }, random: () => 0.4,
+  const room = new Room({ settings, levels, words, rules: { extreme: false, weights }, eggRules, random,
     now: () => time, seconds: () => 20, spinMs: 1, change: () => {},
     send(id, value) {
       if (!out.has(id)) out.set(id, []);
@@ -176,3 +176,62 @@ u.room.next();
 assert.equal(u.room.phase, "finished");
 u.room.stop();
 console.log("ok  automatic admission, removal, shared tier, timed preview, deadline and optional end screens");
+
+for (const tiers of [true, false]) {
+  const test = harness({ ...custom, approve: false, tiers, rounds: 1 }, { eggMultiplier: 1000 }, () => 0.00679);
+  const first = test.join("Terry"), second = test.join("Robin");
+  assert.equal(first.read().at(-1).eggOdds, undefined);
+  test.room.start();
+  assert.equal(first.read().at(-1).eggOdds, undefined);
+  assert.equal(test.room.surpriseOdds(), null);
+  test.room.next();
+  if (tiers) {
+    const spin = first.read().at(-1);
+    assert.equal(spin.level, "?");
+    assert.equal(spin.eggOdds, undefined);
+    test.room.land();
+  }
+  const surprise = first.read().at(-1);
+  assert.equal(surprise.phase, "egg");
+  assert.equal(surprise.eggOdds, 147);
+  assert.equal(surprise.score, 0);
+  assert.equal(surprise.question, undefined);
+  assert.equal(test.room.timer, null);
+  assert.equal(second.read().at(-1).eggOdds, 147);
+  test.room.continueEgg();
+  assert.equal(test.room.surpriseOdds(), null);
+  if (tiers) {
+    const spin = first.read().at(-1);
+    assert.equal(spin.level, "Normal");
+    assert.equal(spin.eggOdds, undefined);
+    test.room.land();
+  }
+  const question = first.read().at(-1);
+  assert.equal(question.phase, "question");
+  assert.equal(question.eggOdds, undefined);
+  const answer = test.room.questions.get(first.id);
+  const wrong = test.room.questions.get(second.id);
+  first.send({ t: "answer", round: 1, answer: answer.correct });
+  second.send({ t: "answer", round: 1, answer: [(wrong.correct[0] + 1) % wrong.options.length] });
+  const reveal = first.read().at(-1);
+  assert.equal(reveal.result.points, answer.points);
+  assert.equal(reveal.eggOdds, undefined);
+  assert.equal(second.read().at(-1).result.points, 0);
+  test.room.stop();
+}
+const disabledEgg = harness(defaults, { egg: false }, () => 0);
+assert.equal(disabledEgg.room.eggChance, 0);
+assert.equal(disabledEgg.room.eggSlice, null);
+const defaultEgg = harness(defaults, {}, () => 0);
+assert(defaultEgg.room.eggSlice);
+assert.equal(defaultEgg.room.eggChance, Wheel.eggChance({ eggMultiplier: 1 }));
+assert.equal(defaultEgg.room.surpriseOdds(), null);
+const defaultFirst = defaultEgg.join("Mika"), defaultSecond = defaultEgg.join("Drew");
+defaultEgg.room.approve(defaultFirst.id);
+defaultEgg.room.approve(defaultSecond.id);
+defaultEgg.room.start();
+defaultEgg.room.next();
+defaultEgg.room.land();
+assert.equal(defaultFirst.read().at(-1).eggOdds, 146751);
+defaultEgg.room.stop();
+console.log("ok  spectator rooms display the odds and resume the round with regular scoring");
