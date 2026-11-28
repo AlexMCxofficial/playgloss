@@ -7,7 +7,6 @@ var Overlays = (function () {
   var fmt = function (n) { return n % 1 ? n.toFixed(1) : String(n); };
   var pl = function (n, w) { return fmt(n) + " " + w + (n === 1 ? "" : "s"); };
   var PU = [["x2", "2x"], ["x3", "3x"], ["shield", "Shield"]];
-  var SL = Wheel.slices;
 
   // Power-up choice: shown after difficulty, before word. Returns a Promise that resolves with the chosen power-up (or null).
   function powerUp(g, lv) {
@@ -97,12 +96,15 @@ var Overlays = (function () {
   }
 
   // Egg overlay
-  function egg(shared, cb) {
-    var one = Math.round(Wheel.total / SL[SL.length - 1].weight / 50) * 50;
-    $("egg-odds").textContent = one.toLocaleString("en-US");
-    $("egg-extra").textContent = shared ? "Both teams hit it, so both teams win." : "";
+  function egg(odds, cb) {
+    $("egg-odds").textContent = (odds || Wheel.eggOdds()).toLocaleString("en-US");
     $("egg").hidden = false; $("egg-ok").focus();
-    $("egg-ok").onclick = function () { $("egg").hidden = true; cb(); };
+    $("egg-ok").onclick = cb;
+  }
+
+  function hideEgg() {
+    $("egg").hidden = true;
+    $("egg-odds").textContent = "";
   }
 
   // Generic ask dialog. Questions wait their turn, so a second one never tries to open over the first.
@@ -127,6 +129,7 @@ var Overlays = (function () {
   // These need to be available globally for the host game loop
   var used = {};
 
-  return { powerUp: powerUp, pick: pick, question: question, egg: egg, ask: ask, cancelAsk: cancelAsk, shuffle: shuffle, PU: PU, used: used };
+  return { powerUp: powerUp, pick: pick, question: question, egg: egg, hideEgg: hideEgg,
+    ask: ask, cancelAsk: cancelAsk, shuffle: shuffle, PU: PU, used: used };
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = Overlays;

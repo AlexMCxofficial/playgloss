@@ -100,7 +100,7 @@
     clearClock();
     body.replaceChildren();
     status.textContent = "";
-    score.hidden = state.phase === "lobby";
+    score.hidden = state.phase === "lobby" || state.phase === "egg";
     score.textContent = state.score + " pts";
     var phase = state.phase;
     if (phase !== lastPhase || state.round !== lastRound) {
@@ -129,7 +129,10 @@
     }
     var panel = el("section", "quiz-panel quiz-stage");
     body.append(panel);
-    if (phase === "preview" || phase === "question" || phase === "reveal") {
+    if (phase === "egg") {
+      title.textContent = "Kahoot-like game";
+      panel.append(el("h2", "", "1 in " + state.eggOdds.toLocaleString("en-US")));
+    } else if (phase === "preview" || phase === "question" || phase === "reveal") {
       title.textContent = "Question " + state.round + " / " + state.total;
       if (phase === "preview" || phase === "question") {
         var label = el("p", "quiz-meta", phase === "preview" ? "Preview" : state.level || "Time left");

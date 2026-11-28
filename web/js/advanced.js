@@ -8,7 +8,7 @@ var PGAdvanced = (function () {
   var save = function (k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
 
   var LEVEL_IDS = ["very-easy", "easy", "normal", "hard", "very-hard", "extremely-hard", "insanely-hard", "impossible"];
-  // The Easter egg ("?") is not in the list: its chance is fixed and the player never sees it.
+  // The Easter egg ("?") is configured separately from the twelve regular slices.
   var POWER_IDS = ["x2", "x3", "shield", "free"];
   var ALL_IDS = LEVEL_IDS.concat(POWER_IDS);
   var LEVEL_NAMES = {
@@ -24,6 +24,8 @@ var PGAdvanced = (function () {
   };
   var MAX_QUESTIONS = 1000, MAX_WORD = 50, MAX_TEXT = 200, MAX_FILE = 2 * 1024 * 1024;
   var WORDLIST_FORMAT = "word,meaning,wrong1,wrong2,wrong3,choices";
+  var HIDDEN_RATE = "playgloss.debug.hidden.easteregg.rate", HIDDEN_UNLOCKED = HIDDEN_RATE + ".unlocked";
+  var EGG_MULTIPLIER = "adv-egg-multiplier", MAX_EGG_MULTIPLIER = 1000;
 
   function copy(o) { return JSON.parse(JSON.stringify(o)); }
   var hundredths = function (v) { return Math.round(v * 100); };
@@ -92,17 +94,53 @@ var PGAdvanced = (function () {
   var enabled = function () { return read("advanced-mode") === "1"; };
   function notify() { subs.forEach(function (f) { try { f(get()); } catch (e) { /* a listener must not stop the others */ } }); }
   function setEnabled(on) { save("advanced-mode", on ? "1" : "0"); notify(); }
+  function hiddenUnlocked() { return read(HIDDEN_UNLOCKED) === "1"; }
+  function hiddenRateEnabled() { return hiddenUnlocked() && read(HIDDEN_RATE) === "1"; }
+  function unlockHiddenRate() {
+    if (!enabled()) return false;
+    return save(HIDDEN_UNLOCKED, "1");
+  }
+  function disableHiddenRate() {
+    if (!enabled() || !hiddenUnlocked() || !save(HIDDEN_RATE, "0")) return false;
+    if (!save(HIDDEN_UNLOCKED, "0")) return false;
+    notify();
+    return true;
+  }
+  function setHiddenRate(on) {
+    if (!enabled() || !hiddenUnlocked()) return;
+    save(HIDDEN_RATE, on ? "1" : "0");
+    notify();
+  }
+  function validMultiplier(value) {
+    return Number.isInteger(value) && value >= 1 && value <= MAX_EGG_MULTIPLIER;
+  }
+  function eggMultiplier() {
+    var value = Number(read(EGG_MULTIPLIER));
+    return validMultiplier(value) ? value : 1;
+  }
+  function forEgg() {
+    var rules = {};
+    if (enabled()) {
+      if (!st.eggEnabled) rules.egg = false;
+      if (hiddenRateEnabled()) rules.eggMultiplier = eggMultiplier();
+    }
+    return rules;
+  }
 
   function get() {
     return {
       weights: copy(st.weights), eggEnabled: st.eggEnabled, questionsMode: st.questionsMode,
-      customQuestions: copy(st.customQuestions), dontShowExportPrompt: st.dontShowExportPrompt
+      customQuestions: copy(st.customQuestions), dontShowExportPrompt: st.dontShowExportPrompt,
+      eggMultiplier: eggMultiplier()
     };
   }
 
   // Saves the parts that are given and valid. Returns { ok, error }; nothing is saved when something is wrong.
   function set(p) {
     p = p || {};
+    if (p.eggMultiplier !== undefined && !validMultiplier(p.eggMultiplier)) {
+      return { ok: false, error: "Easter Egg multiplier must be a whole number from 1 to 1,000." };
+    }
     var w = null, qs = null;
     if (p.weights !== undefined) {
       var cw = checkWeights(p.weights);
@@ -116,6 +154,7 @@ var PGAdvanced = (function () {
     }
     if (w) { st.weights = w; save("adv-weights", JSON.stringify(w)); }
     if (typeof p.eggEnabled === "boolean") { st.eggEnabled = p.eggEnabled; save("adv-egg-enabled", p.eggEnabled ? "1" : "0"); }
+    if (p.eggMultiplier !== undefined && enabled() && hiddenRateEnabled()) save(EGG_MULTIPLIER, String(p.eggMultiplier));
     if (p.questionsMode === "default" || p.questionsMode === "custom") { st.questionsMode = p.questionsMode; save("adv-questions-mode", p.questionsMode); }
     if (qs) { st.customQuestions = qs; save("adv-custom-questions", JSON.stringify(qs)); }
     if (typeof p.dontShowExportPrompt === "boolean") { st.dontShowExportPrompt = p.dontShowExportPrompt; save("adv-dont-show-export", p.dontShowExportPrompt ? "1" : "0"); }
@@ -127,9 +166,8 @@ var PGAdvanced = (function () {
   // What a Custom game takes from Advanced Mode: null when Advanced Mode is off or nothing differs from the standard game.
   function forGame() {
     if (!enabled()) return null;
-    var a = {}, w = pickWeights(st.weights);
+    var a = forEgg(), w = pickWeights(st.weights);
     if (JSON.stringify(w) !== JSON.stringify(DEFAULT_WEIGHTS)) a.weights = w;
-    if (!st.eggEnabled) a.egg = false;
     if (st.questionsMode === "custom" && st.customQuestions.length) a.questions = "custom";
     return Object.keys(a).length ? a : null;
   }
@@ -138,7 +176,9 @@ var PGAdvanced = (function () {
 
   /* ---------- the whole advanced setup as data (the file itself is made and read in ui.js) ---------- */
   function exportData() {
-    return { weights: copy(st.weights), eggEnabled: st.eggEnabled, questionsMode: st.questionsMode, customQuestions: copy(st.customQuestions) };
+    var data = { weights: copy(st.weights), eggEnabled: st.eggEnabled, questionsMode: st.questionsMode, customQuestions: copy(st.customQuestions) };
+    if (enabled() && hiddenRateEnabled()) data.eggMultiplier = eggMultiplier();
+    return data;
   }
   // Checks everything first, then saves it all or nothing.
   function importData(d) {
@@ -147,6 +187,9 @@ var PGAdvanced = (function () {
     if (d.weights !== undefined) p.weights = d.weights;
     if (d.customQuestions !== undefined) p.customQuestions = d.customQuestions;
     if (typeof d.eggEnabled === "boolean") p.eggEnabled = d.eggEnabled;
+    if (enabled() && hiddenRateEnabled() && d.eggMultiplier !== undefined) {
+      p.eggMultiplier = d.eggMultiplier === 0 ? 1 : d.eggMultiplier; // Older files used 0 for the standard chance.
+    }
     if (d.questionsMode === "default" || d.questionsMode === "custom") p.questionsMode = d.questionsMode;
     return set(p);
   }
@@ -208,7 +251,10 @@ var PGAdvanced = (function () {
 
   return {
     enabled: enabled, setEnabled: setEnabled, get: get, set: set, resetWeights: resetWeights, checkWeights: checkWeights,
-    forGame: forGame, questions: questions, cleanQuestion: cleanQuestion,
+    forGame: forGame, forEgg: forEgg, questions: questions, cleanQuestion: cleanQuestion,
+    hiddenUnlocked: hiddenUnlocked, hiddenRateEnabled: hiddenRateEnabled, unlockHiddenRate: unlockHiddenRate,
+    disableHiddenRate: disableHiddenRate, setHiddenRate: setHiddenRate,
+    HIDDEN_RATE: HIDDEN_RATE, HIDDEN_UNLOCKED: HIDDEN_UNLOCKED, MAX_EGG_MULTIPLIER: MAX_EGG_MULTIPLIER,
     exportData: exportData, importData: importData, exportWordlist: exportWordlist, importWordlist: importWordlist,
     subscribe: function (f) { subs.push(f); },
     LEVEL_IDS: LEVEL_IDS, POWER_IDS: POWER_IDS, ALL_IDS: ALL_IDS, LEVEL_NAMES: LEVEL_NAMES, POWER_NAMES: POWER_NAMES,

@@ -244,7 +244,7 @@
     var mine = mySeat >= 0 && g.turn === mySeat && !g.over;
     if (x.pu && mine) showPowerUp(x.pu); else $("pu").hidden = true;
     if (x.q && mine) showQuestion(x.q); else hideQuestion();
-    if (x.egg) showEgg(x.egg.shared, mine); else $("egg").hidden = true;
+    if (x.egg && mine) showEgg(x.egg.odds); else hideEgg();
     if (x.drawOffer && x.drawOffer.targetSeat === mySeat && mySeat >= 0 && !g.over) showDrawOffer(x.drawOffer); else if (dlgKind === "draw") closeDlg();
     if (dlgKind === "resign" && !acts(mySeat)) closeDlg();
     $("spin").disabled = !canSpin();
@@ -254,7 +254,7 @@
   // Leaving the game screen (the host went back to the lobby): nothing may stay open.
   function clearGame() {
     if (g) PGAudio.stop();
-    $("pu").hidden = true; $("egg").hidden = true; hideQuestion(); closeDlg(); busy = false; g = null;
+    $("pu").hidden = true; hideEgg(); hideQuestion(); closeDlg(); busy = false; g = null;
   }
 
   // Draw the wheel (same drawing as the host page, with the level colors the host chose for a Custom game).
@@ -366,21 +366,17 @@
   }
   function hideQuestion() { clearInterval(qTimer); qTimer = null; qNow = -1; $("q").hidden = true; }
 
-  // Easter egg: everybody sees it, only the player whose turn it is gets the Continue button.
-  function showEgg(shared, mine) {
+  function showEgg(odds) {
     var first = $("egg").hidden;
-    if (first) PGAudio.play("reward");
-    try {
-      var one = Math.round(Wheel.total / Wheel.slices[Wheel.slices.length - 1].weight / 50) * 50;
-      $("egg-odds").textContent = one.toLocaleString("en-US");
-    } catch (e) {
-      $("egg-odds").textContent = "1 in 50";
-    }
-    $("egg-extra").textContent = shared ? "Both teams hit it, so both teams win." : "";
-    $("egg-ok").hidden = !mine;
+    $("egg-odds").textContent = (odds || Wheel.eggOdds()).toLocaleString("en-US");
     if (first) $("egg-ok").disabled = false;
     $("egg-ok").onclick = function () { $("egg-ok").disabled = true; guest.sendAction("ok"); };
-    $("egg").hidden = false; if (first && mine) $("egg-ok").focus();
+    $("egg").hidden = false; if (first) $("egg-ok").focus();
+  }
+
+  function hideEgg() {
+    $("egg").hidden = true;
+    $("egg-odds").textContent = "";
   }
 
   // A draw offer for this player (the host only sends it to the player it is meant for).

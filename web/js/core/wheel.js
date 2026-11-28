@@ -12,7 +12,7 @@
 //
 // 0.1.5: Custom mode supports custom level colors via levelColors map.
 // 0.1.6: Advanced Mode can set the chance of the 8 levels, 2x, 3x, Shield and Free 5 (percentages that add up to 100) and turn
-// the Easter egg off. The egg's own chance cannot be changed. Extreme mode still flips the eight level chances.
+// the Easter egg off. An optional multiplier scales the egg's probability. Extreme mode still flips the eight level chances.
 var Wheel = (function () {
   // id, name, colour, text colour, points, seconds, weight
   var L = [
@@ -32,18 +32,26 @@ var Wheel = (function () {
   });
   var slices = L.concat(S);
   var total = slices.reduce(function (t, s) { return t + s.weight; }, 0);
-  // The Easter egg keeps the very same chance in Advanced Mode: the twelve other slices are set by the player and add up
-  // to 100, so the egg gets the weight that gives it its normal share (0.01 of 1467.51) next to them.
-  var EGG_WEIGHT = 100 * 0.01 / (total - 0.01);
+  var egg = S[S.length - 1];
   var isLevel = function (id) { return L.some(function (lv) { return lv.id === id; }); };
 
-  // adv (Advanced Mode, optional): { weights: { id: percent for the twelve slices that are not the egg }, egg: false turns the egg off }.
-  // Without adv everything is exactly as before.
+  function eggChance(adv) {
+    if (adv && adv.egg === false) return 0;
+    var multiplier = adv && adv.eggMultiplier;
+    if (!Number.isInteger(multiplier) || multiplier < 1 || multiplier > 1000) multiplier = 1;
+    return egg.weight * multiplier / total;
+  }
+
+  function eggWeight(adv, normalized) {
+    var chance = eggChance(adv), ordinaryWeight = normalized ? 100 : total - egg.weight;
+    // Give the egg its target share while preserving the relative odds of all the other slices.
+    return ordinaryWeight * chance / (1 - chance);
+  }
+
   function weight(s, extreme, adv) {
+    if (s.id === "egg") return eggWeight(adv, !!(adv && adv.weights));
     var i = L.findIndex(function (lv) { return lv.id === s.id; });
-    if (s.id === "egg" && adv && adv.egg === false) return 0;
     if (!adv || !adv.weights) return extreme && i >= 0 ? L[L.length - 1 - i].weight : s.weight; // only the eight levels flip
-    if (s.id === "egg") return EGG_WEIGHT;
     var id = extreme && i >= 0 ? L[L.length - 1 - i].id : s.id; // Extreme still flips the levels, the specials never change
     var w = adv.weights[id];
     return typeof w === "number" && isFinite(w) && w > 0 ? w : 0;
@@ -59,6 +67,11 @@ var Wheel = (function () {
   function percent(s, extreme, adv) {
     var sum = slices.reduce(function (t, x) { return t + weight(x, extreme, adv); }, 0);
     return sum > 0 ? weight(s, extreme, adv) / sum * 100 : 0;
+  }
+
+  function eggOdds(adv) {
+    var chance = eggChance(adv);
+    return chance ? Math.round(1 / chance) : null;
   }
 
   // The slices to DRAW, with custom level colors applied (looks only: odds, points and seconds never change).
@@ -80,5 +93,6 @@ var Wheel = (function () {
     return lum > .179 ? "#000" : "#fff";
   }
 
-  return { slices: slices, total: total, pick: pick, percent: percent, weight: weight, getSlices: getSlices, EGG_WEIGHT: EGG_WEIGHT };
+  return { slices: slices, total: total, pick: pick, percent: percent, weight: weight, getSlices: getSlices,
+    eggChance: eggChance, eggOdds: eggOdds, EGG_WEIGHT: eggWeight(null, true) };
 })();

@@ -7,7 +7,7 @@
   var back = get("quiz-back"), confirm = get("quiz-confirm"), title = get("quiz-title");
   var room, listener, refreshTimer, clockStop, relay, opening = false, stopping = false;
   var queues = new Map(), closing = new Set(), qrModule, joinUrl;
-  var wheel, wheelBox, shownSpin = 0, rotation = 0;
+  var wheel, wheelBox, rotation = 0;
   var lobby, lobbyList, lobbyButton, lobbyStatus, game, gameStatus, questionTarget, actions;
   var lastPhase, lastRound;
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -116,10 +116,13 @@
     wheelPointer.setAttribute("aria-hidden", "true");
     wheel = el("div", "quiz-wheel");
     wheel.setAttribute("aria-hidden", "true");
-    wheel.style.background = "conic-gradient(" + levels.map(function (lv, i) { return lv.color + " " + i * 45 + "deg " + (i + 1) * 45 + "deg"; }).join(", ") + ")";
+    var size = 360 / levels.length;
+    wheel.style.background = "conic-gradient(" + levels.map(function (lv, i) {
+      return lv.color + " " + i * size + "deg " + (i + 1) * size + "deg";
+    }).join(", ") + ")";
     levels.forEach(function (lv, i) {
-      var label = el("span", "", ["VE", "E", "N", "H", "VH", "EH", "IH", "I"][i]);
-      label.style.setProperty("--segment", (22.5 + i * 45) + "deg");
+      var label = el("span", "", ["VE", "E", "N", "H", "VH", "EH", "IH", "I", "?"][i]);
+      label.style.setProperty("--segment", ((i + 0.5) * size) + "deg");
       label.style.color = lv.ink;
       wheel.append(label);
     });
@@ -127,15 +130,14 @@
   }
 
   function paintWheel() {
-    if (!room.level || shownSpin === room.round) return;
-    shownSpin = room.round;
-    var index = room.o.levels.indexOf(room.level);
-    var target = (360 - (22.5 + index * 45)) % 360;
+    var count = room.o.levels.length + (room.eggSlice ? 1 : 0);
+    var index = room.hitEgg ? count - 1 : room.o.levels.indexOf(room.level);
+    var target = (360 - (index + 0.5) * 360 / count) % 360;
     var turn = (target - rotation % 360 + 360) % 360;
     var from = rotation;
     rotation += reduce ? turn : 1080 + turn;
     wheel.style.transform = "rotate(" + rotation + "deg)";
-    PGAudio.spin(from, rotation, room.o.levels.length, 2, reduce ? null : [0.12, 0.55, 0.13, 1]);
+    PGAudio.spin(from, rotation, count, 2, reduce ? null : [0.12, 0.55, 0.13, 1]);
   }
 
   function buildGame() {
@@ -144,7 +146,7 @@
     questionTarget = el("div");
     actions = el("div", "row quiz-controls");
     if (room.settings.tiers) {
-      buildWheel(room.o.levels);
+      buildWheel(room.eggSlice ? room.o.levels.concat(room.eggSlice) : room.o.levels);
       game.append(wheelBox);
     }
     game.append(gameStatus, questionTarget, actions);
@@ -168,6 +170,7 @@
     lastRound = room.round;
     if (clockStop) { clockStop(); clockStop = null; }
     title.textContent = phase === "podium" || phase === "finished" ? "Game finished" : "Kahoot-like game";
+    gameStatus.hidden = phase === "egg";
     gameStatus.textContent = room.round ? "Question " + room.round + " / " + room.total : room.players.size + " players ready";
     questionTarget.replaceChildren();
     actions.replaceChildren();
@@ -178,6 +181,9 @@
     if (phase === "spinning") {
       paintWheel();
       questionTarget.append(el("h2", "", "Spinning the difficulty wheel…"));
+    } else if (phase === "egg") {
+      questionTarget.append(el("h2", "", "1 in " + room.surpriseOdds().toLocaleString("en-US")));
+      actions.append(button("Continue", function () { room.continueEgg(); }, true));
     } else if (phase === "preview" || phase === "question" || phase === "reveal") {
       if (room.level) gameStatus.append(document.createTextNode(" · " + room.level.name));
       if (phase !== "reveal") {
@@ -258,7 +264,7 @@
       if (!rules) throw new Error("Your wheel settings could not be loaded. Set up the room again.");
       if (!settings.tiers && !settings.questions.length) throw new Error("The question set is empty.");
       var levels = Wheel.getSlices(rules.levelColors).slice(0, 8);
-      room = new QuizRoom({ settings: settings, rules: rules, levels: levels, words: Words,
+      room = new QuizRoom({ settings: settings, rules: rules, levels: levels, words: Words, eggRules: PGAdvanced.forEgg(),
         seconds: function (level) { return Game.seconds({ custom: { time: rules.time } }, level); },
         spinMs: reduce ? 350 : 2100, change: render, send: send, drop: drop });
       var qr = import("./lean-qr.js").then(function (module) { qrModule = module; }).catch(function () {});

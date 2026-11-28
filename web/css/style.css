@@ -138,8 +138,6 @@ dialog::backdrop{background:rgba(0,0,0,.75)}
 
 .egg{background:#000;color:#fff;border-color:#33353d;max-width:36rem}
 .egg h2{font-size:clamp(1.6rem,6vw,2.4rem)}
-.egg .hot{color:#ff3b3b}
-.egg .big{font-size:1.25rem;font-weight:700;margin:1.5rem 0!important}
 
 @media (prefers-reduced-motion:reduce){#wheel{transition:none!important}}
 @media (max-width:420px){.score{font-size:2rem}.spin{width:100%}}
@@ -387,11 +385,18 @@ input,textarea,select,button{font-family:inherit}
 .slidebox input[type=range]{flex:1;min-width:8rem;max-width:18rem;accent-color:var(--accent)}
 .guest-audio{margin:.4rem 0 1rem}
 .guest-audio summary{width:fit-content;cursor:pointer;font-weight:700}
-[data-audio-controls] output{min-width:4ch;font-variant-numeric:tabular-nums}
 .numbox{display:inline-flex;align-items:center;gap:.35rem}
 .numbox input,.filebox input[type=file],.advin,.qform input,.xfer-text{
   min-height:44px;padding:0 .75rem;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
 .numbox input{width:5.5rem;text-align:center}
+.advanced-tools{display:flex;justify-content:flex-end}
+.advanced-help{min-width:44px;padding:0}
+.hidden-rate-actions{display:flex;justify-content:space-between;gap:1rem}
+#hidden-rate-dialog{overflow-wrap:anywhere}
+#hidden-rate-dialog.confirm-hidden-rate #hidden-rate-cancel{background:#bef264;color:#182309}
+#hidden-rate-dialog.confirm-hidden-rate #hidden-rate-proceed{background:#b91c1c;color:#fff}
+#advanced-hidden-rate{grid-template-columns:minmax(0,1fr) auto}
+#advanced-hidden-rate-label{overflow-wrap:anywhere}
 .filebox{gap:.5rem;flex-wrap:wrap;margin-top:.75rem}
 .filebox input[type=file]{flex:1;min-width:12rem;padding:.5rem}
 #bg-blur-value{min-width:2rem;text-align:right;font-variant-numeric:tabular-nums}

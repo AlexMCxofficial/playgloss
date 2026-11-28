@@ -117,7 +117,10 @@ var Session = (function () {
         boost:POW[e.q.boost] ? e.q.boost : null, opts:e.q.opts.map(function (t) { return str(t, 300); }),
         res:r ? { k:Math.floor(num(r.k, -1, 9)), right:Math.floor(num(r.right, 0, 9)), ok:!!r.ok, pts:num(r.pts, -1000, 1000) } : null };
     }
-    if (e.egg && typeof e.egg === "object") o.egg = { shared:!!e.egg.shared };
+    if (e.egg && typeof e.egg === "object") {
+      o.egg = { shared:!!e.egg.shared };
+      if (Number.isInteger(e.egg.odds) && e.egg.odds > 0 && e.egg.odds <= 1000000) o.egg.odds = e.egg.odds;
+    }
     if (e.drawOffer && typeof e.drawOffer === "object") o.drawOffer = { targetSeat:Math.floor(num(e.drawOffer.targetSeat, -1, 3)), fromName:cleanName(e.drawOffer.fromName) };
     return o;
   }

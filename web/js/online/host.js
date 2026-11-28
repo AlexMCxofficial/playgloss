@@ -148,9 +148,8 @@ var Host = (function () {
   };
 
   // Called by the UI whenever the game changes. data = { g, sd, msg, busy, spin, egg, drawOffer, pu, q }.
-  // pu and q (the power-up choice and the question) belong to one player only, so they go to the guest in seat
-  // privSeat and to nobody else. Everything else goes to everyone.
-  var PRIVATE = ["pu", "q"];
+  // The player's overlays go only to the guest in the active seat.
+  var PRIVATE = ["pu", "q", "egg"];
   Host.prototype.broadcastSnap = function (data, privSeat) {
     var s = this.session;
     if (!s || s.phase !== "game") return;

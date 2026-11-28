@@ -18,6 +18,7 @@
 // 0.1.6 adds an optional Advanced Mode part, g.custom.adv (left out when Advanced Mode is off):
 //   weights   { id: percent } for the eight levels, 2x, 3x, Shield and Free 5: two decimals, adding up to exactly 100
 //   egg       false turns the Easter egg off
+//   eggMultiplier  1 to 1,000 scales the Easter egg's standard probability
 //   questions "custom" asks the player's own questions (the questions themselves stay on the host's device)
 // Hearts exist if and only if Infinite is on, in every mode.
 var Game = (function () {
@@ -44,7 +45,7 @@ var Game = (function () {
     if (adv) out.adv = adv;
     return out;
   }
-  // The twelve slices whose chance the player sets in Advanced Mode (the Easter egg's chance is fixed).
+  // The twelve slices whose percentages the player allocates together in Advanced Mode.
   var ADV_IDS = LEVELS.concat(["x2", "x3", "shield", "free"]);
   // Advanced Mode setup -> clean copy or null. The weights are only kept when every one is a number from 0 to 100 with at
   // most two decimals and they add up to exactly 100 (counted in hundredths, so there is no rounding error).
@@ -61,6 +62,9 @@ var Game = (function () {
       if (ok && sum === 10000) { out.weights = w; any = true; }
     }
     if (a.egg === false) { out.egg = false; any = true; }
+    if (Number.isInteger(a.eggMultiplier) && a.eggMultiplier > 0 && a.eggMultiplier <= 1000) {
+      out.eggMultiplier = a.eggMultiplier; any = true;
+    }
     if (a.questions === "custom") { out.questions = "custom"; any = true; }
     return any ? out : null;
   }
@@ -214,7 +218,7 @@ var Game = (function () {
     return advance(g) ? roundEnd(g) : "next";
   }
   function draw(g) { g.over = true; g.winner = null; g.reason = "draw agreed"; }
-  function value(s) { return s.points !== undefined ? s.points : s.id === "free" ? 5 : s.id === "egg" ? 1000 : 0; }
+  function value(s) { return s.points !== undefined ? s.points : s.id === "free" ? 5 : 0; }
 
   // 1 vs 1 first turn. teams: [{ name }, { name }]. Each side draws 0 to 9; the higher number goes first,
   // equal numbers draw again.

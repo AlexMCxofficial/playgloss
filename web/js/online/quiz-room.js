@@ -22,6 +22,9 @@ var QuizRoom = (function () {
     this.closed = false;
     this.random = o.random || Math.random;
     this.now = o.now || Date.now;
+    this.eggChance = Wheel.eggChance(o.eggRules);
+    this.eggSlice = this.eggChance ? Wheel.slices[Wheel.slices.length - 1] : null;
+    this.hitEgg = false;
   }
 
   Room.prototype.tell = function (peer, message) {
@@ -161,7 +164,9 @@ var QuizRoom = (function () {
     if (phase === "lobby") {
       state.names = Array.from(this.players.values()).map(function (p) { return p.name; });
     } else if (phase === "spinning") {
-      state.level = this.level.name;
+      state.level = this.hitEgg ? this.eggSlice.label : this.level.name;
+    } else if (phase === "egg") {
+      state.eggOdds = this.surpriseOdds();
     } else if (q && (phase === "preview" || phase === "question" || phase === "reveal")) {
       state.question = PGQuiz.publicQuestion(q, phase === "preview");
       state.level = this.level && this.level.name;
@@ -222,6 +227,7 @@ var QuizRoom = (function () {
     if (this.phase === "reveal" && this.settings.leaderboard) return this.setPhase("leaderboard");
     if (this.round === this.total) return this.setPhase(this.settings.podium ? "podium" : "finished");
     var ids = Array.from(this.players.keys());
+    this.hitEgg = this.eggChance > 0 && this.random() < this.eggChance;
     if (this.settings.tiers) {
       this.level = this.pickLevel();
       this.questions = PGQuiz.assignWords(ids, this.o.words, this.level, this.settings, this.o.rules.extreme, this.random);
@@ -234,7 +240,23 @@ var QuizRoom = (function () {
     }
     this.round++;
     this.answers.clear();
-    if (this.level) this.setPhase("spinning", this.preview, this.o.spinMs);
+    if (this.level) this.setPhase("spinning", this.land, this.o.spinMs);
+    else this.land();
+  };
+
+  Room.prototype.land = function () {
+    if (this.hitEgg) this.setPhase("egg");
+    else this.preview();
+  };
+
+  Room.prototype.surpriseOdds = function () {
+    return this.phase === "egg" ? Wheel.eggOdds(this.o.eggRules) : null;
+  };
+
+  Room.prototype.continueEgg = function () {
+    if (this.phase !== "egg") return;
+    this.hitEgg = false;
+    if (this.level) this.setPhase("spinning", this.land, this.o.spinMs);
     else this.preview();
   };
 

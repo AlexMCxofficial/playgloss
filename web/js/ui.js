@@ -98,7 +98,7 @@
 
   /* ---------- session storage ---------- */
   function save() {
-    try { sessionStorage.setItem(KEY, JSON.stringify({ v:3, cfg:cfg, g:g, sd:sd, used:used, tab:tab, pending:busy, hosting:hosting })); } catch (e) {}
+    try { sessionStorage.setItem(KEY, JSON.stringify({ v:3, cfg:cfg, g:g, sd:sd, used:used, tab:tab, pending:busy && !S.egg, hosting:hosting })); } catch (e) {}
   }
   function restore() {
     var skipped = false;
@@ -137,7 +137,8 @@
     gameWasOver = false;
     timers.forEach(clearTimeout); timers = [];
     S = { pu:null, q:null, egg:null, drawOffer:null }; pend = null; drawP = null; offering = false;
-    ["pu", "q", "egg"].forEach(function (id) { $(id).hidden = true; });
+    ["pu", "q"].forEach(function (id) { $(id).hidden = true; });
+    Overlays.hideEgg();
     Overlays.cancelAsk();
   }
 
@@ -370,8 +371,81 @@
     if (!available) parent.appendChild(h("p", "note", "Kahoot-like hosting requires the Windows, macOS or Linux app with Play Online and Advanced Mode on."));
   }
 
+  function openHiddenRate() {
+    if (!cfg.customOn || !PGAdvanced.enabled()) return;
+    var dialog = $("hidden-rate-dialog"), message = $("hidden-rate-message");
+    var cancel = $("hidden-rate-cancel"), proceed = $("hidden-rate-proceed");
+    dialog.classList.remove("confirm-hidden-rate");
+    cancel.onclick = function () { dialog.close(); };
+    if (PGAdvanced.hiddenUnlocked()) {
+      message.textContent = 'Disable "' + PGAdvanced.HIDDEN_RATE + '"?';
+      cancel.textContent = "Cancel";
+      proceed.textContent = "Disable";
+      proceed.onclick = function () {
+        dialog.close();
+        if (PGAdvanced.disableHiddenRate()) {
+          drawSetup();
+          $("setup-body").querySelector(".advanced-help").focus();
+        }
+      };
+      dialog.showModal();
+      return;
+    }
+    message.textContent = "ᓵ𝙹リ⊣∷ᔑℸ⚍ꖎᔑℸ╎𝙹リᓭ, ǁ𝙹⚍ ⎓𝙹⚍リ↸ ℸ⍑ᒷ ⍑╎↸↸ᒷリ ᒲᒷリ⚍";
+    cancel.textContent = "ᓵᔑリᓵᒷꖎ";
+    proceed.textContent = "!¡∷𝙹ᓵᒷᒷ↸";
+    proceed.onclick = function () {
+      message.textContent = "Are you sure?";
+      cancel.textContent = "No";
+      proceed.textContent = "Yes";
+      dialog.classList.add("confirm-hidden-rate");
+      cancel.focus();
+      proceed.onclick = function () {
+        if (cfg.customOn && PGAdvanced.enabled()) PGAdvanced.unlockHiddenRate();
+        dialog.close();
+      };
+    };
+    dialog.showModal();
+  }
+
+  function drawSurpriseSlice(parent, adv) {
+    var showMultiplier = PGAdvanced.hiddenRateEnabled();
+    parent.appendChild(h("h3", "", "Surprise Slice"));
+    pair(parent, 'Enable/Disable "?"', [[true, "Enable"], [false, "Disable"]], adv.eggEnabled, function (on) {
+      PGAdvanced.set({ eggEnabled: on });
+    });
+    if (!showMultiplier) {
+      parent.appendChild(h("p", "note", 'When disabled, the "?" slice never comes up.'));
+      return;
+    }
+
+    var field = h("div"), label = h("label", "setlabel", "Easter Egg multiplier");
+    var row = h("div", "row slidebox"), slider = h("input"), number = h("input"), numbox = h("label", "numbox");
+    label.htmlFor = slider.id = "egg-multiplier-slider";
+    row.setAttribute("role", "group"); row.setAttribute("aria-label", label.textContent);
+    slider.type = "range"; number.type = "number"; number.inputMode = "numeric";
+    [slider, number].forEach(function (input) {
+      input.min = 1; input.max = PGAdvanced.MAX_EGG_MULTIPLIER; input.step = 1; input.value = adv.eggMultiplier;
+    });
+    number.setAttribute("aria-label", label.textContent);
+    function apply(value) {
+      slider.value = value;
+      PGAdvanced.set({ eggMultiplier: value });
+    }
+    slider.oninput = function () { number.value = slider.value; apply(slider.valueAsNumber); };
+    number.oninput = function () { if (number.validity.valid && number.value !== "") apply(number.valueAsNumber); };
+    number.onblur = function () {
+      var value = number.valueAsNumber;
+      number.value = Number.isFinite(value) ? Math.max(1, Math.min(PGAdvanced.MAX_EGG_MULTIPLIER, Math.round(value))) : slider.value;
+      apply(number.valueAsNumber);
+    };
+    numbox.appendChild(number); row.append(slider, numbox); field.append(label, row); parent.appendChild(field);
+  }
+
   function drawAdvancedTab(parent, online, quiz) {
-    var probabilities = h("div");
+    var probabilities = h("div"), header = h("div", "advanced-tools");
+    var help = h("button", "small advanced-help", "?"); help.type = "button"; help.onclick = openHiddenRate;
+    header.appendChild(help); parent.appendChild(header);
     if (online) drawLayout(parent, quizCapacity >= 2 && PGQuiz.enabled(), quiz);
     if (quiz) {
       var setup = h("div", "quiz-settings");
@@ -385,6 +459,7 @@
       probabilities.hidden = !quizSettings.tiers;
     }
     parent.appendChild(probabilities);
+    var quizAdvanced = parent;
     parent = probabilities;
     var adv = PGAdvanced.get(), ids = quiz ? PGAdvanced.LEVEL_IDS : PGAdvanced.ALL_IDS;
     var weights = quiz ? quizSettings.rules.weights : adv.weights, inputs = {}, maxCells = {}, names = {};
@@ -442,12 +517,8 @@
     };
     parent.appendChild(h("div", "row")).appendChild(reset);
 
+    drawSurpriseSlice(quiz ? quizAdvanced : parent, adv);
     if (quiz) return;
-
-    /* The "?" slice */
-    parent.appendChild(h("h3", "", "Surprise slice"));
-    pair(parent, "Enable/Disable \"?\"", [[true, "Enable"], [false, "Disable"]], adv.eggEnabled, function (on) { PGAdvanced.set({ eggEnabled: on }); });
-    parent.appendChild(h("p", "note", "When disabled, the \"?\" slice never comes up. Its chance cannot be changed."));
 
     /* Questions */
     parent.appendChild(h("h3", "", "Words and questions"));
@@ -1243,7 +1314,7 @@
     if (typeof fn === "function") fn(a);
   }
 
-  // Sends the game picture to the guests. The power-up choice and the question go only to the guest whose turn it is.
+  // Sends the game picture to the guests. Player overlays go only to the guest whose turn it is.
   function broadcastSnap(extra) {
     if (!host || !host.session || host.session.phase !== "game" || !g) return;
     var data = { g: g, sd: !!sd, msg: $("msg").textContent, busy: !idle(), egg: S.egg, drawOffer: S.drawOffer, pu: S.pu, q: S.q };
@@ -1340,26 +1411,29 @@
   function withTime(lv) { return Object.assign({}, lv, { time: Game.seconds(g, lv) }); }
 
   function landed(res) {
+    if (res.id === "egg") return eggFlow();
     if (res.points === undefined) PGAudio.play("reward");
     if (sd) return sdLand(res);
     if (res.points !== undefined) return reveal(withTime(res));
-    if (res.id === "egg") { say(who() + " hit the Easter egg!"); return eggFlow(false, finish); }
     Game.grant(g, res.id);
     say(who() + " got " + res.name + (res.id === "free" ? ": +5 points." : ". Turn used."));
     finish();
   }
 
-  // The Easter egg. On the host's screen when the host plays that turn, or when both teams hit it. Otherwise only on
-  // the screen of the guest who hit it (the host just sees the status line).
-  function eggFlow(shared, cb) {
+  // The Easter egg only displays the odds. The current player spins again after dismissing it.
+  function eggFlow() {
     var seat = g.turn, done = false, t = null;
+    var odds = Wheel.eggOdds(g.custom && g.custom.adv);
     var fin = function () {
       if (done) return; done = true; clearTimeout(t);
-      pend = null; S.egg = null; $("egg").hidden = true;
-      cb();
+      pend = null; S.egg = null; Overlays.hideEgg();
+      busy = false;
+      say("");
+      render();
     };
-    S.egg = { shared: shared }; pend = { seat: seat, ok: fin };
-    if (shared || !remote(seat)) Overlays.egg(shared, fin); else t = later(fin, 30000);
+    S.egg = { odds: odds }; pend = { seat: seat, ok: fin };
+    if (!remote(seat)) Overlays.egg(odds, fin); else t = later(fin, 30000);
+    save();
     broadcastSnap();
   }
 
@@ -1432,15 +1506,11 @@
 
   function sdLand(res) {
     sd.vals[sd.who] = Game.value(res); say(who() + " got " + res.name + ".");
-    var go = function () {
-      busy = false;
-      if (sd.who === 0) { sd.who = 1; turnOf(1); return render(); }
-      var r = sd.vals[0], b = sd.vals[1];
-      if (r !== b) { g.over = true; g.winner = r > b ? 0 : 1; g.reason = "won sudden death"; sd = null; return render(); }
-      if (r !== Game.value({ id:"egg" })) { say("Tied again. Each team spins once more."); sd.who = 0; turnOf(0); return render(); }
-      eggFlow(true, function () { g.over = true; g.winner = null; g.reason = "both teams share the win"; sd = null; render(); });
-    };
-    if (res.id === "egg") eggFlow(false, go); else go();
+    busy = false;
+    if (sd.who === 0) { sd.who = 1; turnOf(1); return render(); }
+    var r = sd.vals[0], b = sd.vals[1];
+    if (r !== b) { g.over = true; g.winner = r > b ? 0 : 1; g.reason = "won sudden death"; sd = null; return render(); }
+    say("Tied again. Each team spins once more."); sd.who = 0; turnOf(0); render();
   }
 
   /* ---------- resign and draw ---------- */
@@ -1515,6 +1585,14 @@
   });
   $("new").onclick = newGame;
   window.addEventListener("pagehide", save);
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted && !$("setup").hidden) drawSetup();
+  });
+  window.addEventListener("storage", function (e) {
+    if ($("setup").hidden || (e.key !== PGAdvanced.HIDDEN_RATE && e.key !== PGAdvanced.HIDDEN_UNLOCKED && e.key !== "advanced-mode")) return;
+    if ($("hidden-rate-dialog").open && (!PGAdvanced.enabled() || e.key === PGAdvanced.HIDDEN_UNLOCKED)) $("hidden-rate-dialog").close();
+    drawSetup();
+  });
   document.addEventListener("visibilitychange", function () { if (document.hidden) save(); });
 
   /* ---------- init ---------- */

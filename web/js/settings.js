@@ -128,6 +128,15 @@
       b.setAttribute("aria-pressed", (b.dataset.advancedSet === "on") === adv);
     });
     $("advanced-note").hidden = !adv;
+    var hiddenRate = $("advanced-hidden-rate");
+    hiddenRate.hidden = !PGAdvanced.hiddenUnlocked();
+    hiddenRate.classList.toggle("is-off", !adv);
+    if (!hiddenRate.hidden) $("advanced-hidden-rate-label").textContent = PGAdvanced.HIDDEN_RATE;
+    var rate = PGAdvanced.hiddenRateEnabled();
+    Array.prototype.forEach.call(hiddenRate.querySelectorAll("[data-hidden-rate-set]"), function (b) {
+      b.setAttribute("aria-pressed", b.dataset.hiddenRateSet === String(rate));
+      b.disabled = !adv;
+    });
   }
 
   // The picture the player chose, made small enough for a screen (and for the browser's storage): the longest side is at most
@@ -182,6 +191,10 @@
     }
     else if (bgFit) PGTheme.set({ bgFit: bgFit.dataset.bgFit });
     else if (adv) { PGAdvanced.setEnabled(adv.dataset.advancedSet === "on"); paintAdvanced(); }
+    else if (e.target.matches("button[data-hidden-rate-set]")) {
+      PGAdvanced.setHiddenRate(e.target.dataset.hiddenRateSet === "true");
+      paintAdvanced();
+    }
     else if (o && APP) {
       try { localStorage.setItem("online", o.dataset.onlineSet === "on" ? "1" : "0"); } catch (x) {}
       paintOnline();
@@ -227,6 +240,8 @@
   PGTheme.subscribe(paint);
   PGMode.subscribe(paintModes);
   PGDocs.subscribe(paintDocsSide);
+  window.addEventListener("pageshow", paintAdvanced);
+  window.addEventListener("storage", paintAdvanced);
   paintDocsSide();
   paint();
   paintModes();

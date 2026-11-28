@@ -116,13 +116,7 @@
 <!-- easter egg -->
 <div id="egg" class="overlay" role="dialog" aria-modal="true" aria-labelledby="egg-title" hidden>
 <div class="card egg">
-<h2 id="egg-title">🥳 Congratulations! 🥳</h2>
-<p>You have just <span class="hot">hit the Easter Egg!</span></p>
-<p>Around <span class="hot">1 in <span id="egg-odds"></span></span></p>
-<p id="egg-extra"></p>
-<p class="big">As always, PlayGloss never collects your data!</p>
-<p>Have fun - AlexMC</p>
-<p class="note">You may take a screenshot of this.</p>
+<h2 id="egg-title">1 in <span id="egg-odds"></span></h2>
 <div class="row"><button id="egg-ok" class="small" type="button">Continue</button></div>
 </div>
 </div>
@@ -139,6 +133,13 @@
 
 <dialog id="warn" class="warn" aria-labelledby="warn-text"><p id="warn-text">That name is not allowed. Please choose a different one.</p><div class="row"><button id="warn-ok" class="small" type="button">OK</button></div></dialog>
 <dialog id="dlg" aria-labelledby="dlg-text"><p id="dlg-text"></p><div class="row" id="dlg-btns"></div></dialog>
+<dialog id="hidden-rate-dialog" aria-labelledby="hidden-rate-message">
+<p id="hidden-rate-message" aria-live="polite"></p>
+<div class="row hidden-rate-actions">
+<button id="hidden-rate-cancel" class="small" type="button"></button>
+<button id="hidden-rate-proceed" class="small" type="button"></button>
+</div>
+</dialog>
 </main>
 <footer>
 <ul>

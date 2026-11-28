@@ -178,16 +178,18 @@ var PGAudio = (function () {
       '<button class="small" type="button" data-audio-set="on" aria-pressed="true">On</button>' +
       '<button class="small" type="button" data-audio-set="off" aria-pressed="false">Off</button></div></div>' +
       '<div class="setrow"><label class="setlabel" for="audio-volume">Audio volume</label>' +
-      '<div class="row slidebox"><input id="audio-volume" type="range" min="0" max="100" step="1" value="50">' +
-      '<output for="audio-volume">50%</output></div></div>';
-    var slider = box.querySelector("input"), output = box.querySelector("output");
+      '<div class="row slidebox" role="group" aria-label="Audio volume">' +
+      '<input id="audio-volume" type="range" min="0" max="100" step="1" value="50">' +
+      '<label class="numbox"><input type="number" min="0" max="100" step="1" value="50" inputmode="numeric" aria-label="Audio volume in percent">' +
+      '<span aria-hidden="true">%</span></label></div></div>';
+    var slider = box.querySelector("input[type=range]"), number = box.querySelector("input[type=number]");
     var on = box.querySelector('[data-audio-set="on"]'), off = box.querySelector('[data-audio-set="off"]');
     function paint() {
       on.setAttribute("aria-pressed", String(enabled));
       off.setAttribute("aria-pressed", String(!enabled));
       slider.value = volume;
       slider.setAttribute("aria-valuetext", volume + "%");
-      output.textContent = volume + "%";
+      if (number !== document.activeElement) number.value = volume;
     }
     function toggle(next) {
       if (enabled === next) return;
@@ -198,12 +200,21 @@ var PGAudio = (function () {
     }
     on.onclick = function () { toggle(true); };
     off.onclick = function () { toggle(false); };
-    slider.oninput = function () {
-      volume = clampVolume(Number(slider.value));
+    function setVolume(value) {
+      volume = clampVolume(value);
       save(VOLUME, String(volume));
       update();
+    }
+    function previewVolume() { unlock(); play("ui_click"); }
+    slider.oninput = function () { setVolume(slider.valueAsNumber); number.value = volume; };
+    slider.onchange = previewVolume;
+    number.oninput = function () { if (number.validity.valid && number.value !== "") setVolume(number.valueAsNumber); };
+    number.onchange = function () {
+      if (Number.isFinite(number.valueAsNumber)) setVolume(number.valueAsNumber);
+      number.value = volume;
+      previewVolume();
     };
-    slider.onchange = function () { unlock(); play("ui_click"); };
+    number.onblur = function () { number.value = volume; };
     controls.push(paint);
     paint();
   }
